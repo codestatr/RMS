@@ -1,0 +1,21 @@
+.admin-end-shift-form { display:flex; align-items:center; gap:8px; }
+.admin-end-shift-form input { width:125px; min-height:36px; padding:8px 10px; border:1px solid var(--neutral-300); border-radius:8px; font-size:.75rem; font-weight:700; }
+.admin-end-shift-form button { min-height:36px; }
+@media (max-width:600px) { .admin-end-shift-form { align-items:stretch; flex-direction:column; } .admin-end-shift-form input { width:100%; } }
+/* Shifts Management Styles */
+.shifts-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.shift-history {
+  padding: 18px;
+}
+
+.shift-history h2 {
+  margin-bottom: 14px;
+  color: #102b50;
+  font-size: 1rem;
+  font-weight: 800;
+}

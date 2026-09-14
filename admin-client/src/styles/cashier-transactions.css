@@ -1,0 +1,47 @@
+.transactions-page { display:flex; flex-direction:column; gap:20px; max-width:1180px; }
+.transactions-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding-bottom:16px; border-bottom:1px solid var(--neutral-200); }
+.transactions-title { display:flex; align-items:center; gap:10px; color:var(--sidebar-blue-950); font-size:1.3rem; font-weight:800; }
+.transactions-title svg { color:var(--primary-600); }
+.transactions-subtitle { margin-top:6px; color:var(--neutral-500); font-size:.78rem; }
+.transactions-search { position:relative; width:290px; flex:0 0 auto; }
+.transactions-search-input { width:100%; min-height:40px; padding:10px 12px 10px 36px; border:1px solid var(--neutral-300); border-radius:9px; color:var(--neutral-800); background:#fff; font-size:.74rem; font-weight:600; }
+.transactions-search svg { position:absolute; top:13px; left:13px; color:var(--neutral-400); font-size:.8rem; }
+.transactions-card { overflow:hidden; border:1px solid var(--neutral-200); border-radius:14px; background:#fff; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+.transactions-table-wrap { overflow-x:auto; }
+.transactions-table { width:100%; min-width:850px; border-collapse:collapse; }
+.transactions-table th { padding:13px 16px; border-bottom:1px solid var(--neutral-200); color:var(--neutral-500); background:var(--neutral-50); font-size:.65rem; font-weight:900; letter-spacing:.05em; text-align:left; text-transform:uppercase; white-space:nowrap; }
+.transactions-table td { padding:14px 16px; border-bottom:1px solid var(--neutral-100); color:var(--neutral-700); font-size:.74rem; vertical-align:middle; }
+.transactions-table tbody tr:hover { background:#fffcf5; }
+.transaction-number { color:var(--neutral-900); font-family:monospace; font-size:.7rem; font-weight:800; }
+.transaction-guest { color:var(--neutral-900); font-weight:800; }
+.transaction-property { max-width:220px; }
+.transaction-method { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:5px 8px; font-size:.65rem; font-weight:900; text-transform:uppercase; white-space:nowrap; }
+.transaction-method.cash { color:#92400e; background:#fef3c7; }
+.transaction-method.mpesa { color:#047857; background:#d1fae5; }
+.transaction-method.card, .transaction-method.paypal { color:#0369a1; background:#e0f2fe; }
+.transaction-amount { color:var(--primary-700) !important; font-weight:900; white-space:nowrap; }
+.transaction-time { color:var(--neutral-500) !important; font-size:.68rem !important; white-space:nowrap; }
+.transaction-reprint { display:inline-flex; min-height:30px; align-items:center; gap:6px; padding:6px 9px; border:1px solid var(--neutral-300); border-radius:7px; color:var(--neutral-700); background:#fff; font-size:.68rem; font-weight:800; cursor:pointer; }
+.transaction-reprint:hover { border-color:var(--primary-400); color:var(--primary-700); background:#fffbeb; }
+.transactions-empty { padding:42px 16px !important; color:var(--neutral-400) !important; font-style:italic; text-align:center; }
+.receipt-modal-overlay { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(15,23,42,.62); backdrop-filter:blur(4px); }
+.receipt-modal { width:min(100%,440px); padding:22px; border:1px solid var(--neutral-200); border-radius:16px; background:#fff; box-shadow:0 18px 45px rgba(15,23,42,.25); }
+.receipt-modal-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:13px; border-bottom:1px solid var(--neutral-100); }
+.receipt-modal-header h3 { display:flex; align-items:center; gap:8px; color:var(--neutral-900); font-size:.85rem; font-weight:900; }
+.receipt-modal-header svg { color:var(--primary-600); }
+.receipt-modal-close { min-height:30px; padding:5px; border:0; color:var(--neutral-400); background:transparent; cursor:pointer; }
+.receipt-modal-close:hover { color:var(--neutral-800); }
+.receipt-slip { margin-top:16px; padding:18px; border:1px dashed var(--neutral-300); border-radius:9px; color:var(--neutral-700); background:var(--neutral-50); font-family:monospace; font-size:.72rem; }
+.receipt-slip-header { padding-bottom:10px; border-bottom:1px dashed var(--neutral-300); text-align:center; }
+.receipt-slip-header h4 { color:var(--neutral-900); font-size:.78rem; }
+.receipt-slip-header p { margin-top:3px; color:var(--neutral-500); font-size:.65rem; }
+.receipt-line { display:flex; justify-content:space-between; gap:12px; padding-top:9px; }
+.receipt-line strong { color:var(--neutral-900); text-align:right; }
+.receipt-total { display:flex; justify-content:space-between; gap:12px; margin-top:12px; padding-top:11px; border-top:1px dashed var(--neutral-300); color:var(--neutral-900); font-size:.82rem; font-weight:900; }
+.receipt-modal-actions { display:flex; gap:8px; margin-top:16px; }
+.receipt-print-button, .receipt-close-button { min-height:38px; border:0; border-radius:8px; font-size:.72rem; font-weight:800; cursor:pointer; }
+.receipt-print-button { flex:1; color:#fff; background:#1e293b; }
+.receipt-close-button { padding:0 14px; color:var(--neutral-700); background:var(--neutral-100); }
+.receipt-print-button:hover { background:#0f172a; }
+.receipt-close-button:hover { background:var(--neutral-200); }
+@media (max-width:700px) { .transactions-header { align-items:stretch; flex-direction:column; } .transactions-search { width:100%; } }

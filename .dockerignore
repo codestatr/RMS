@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/out
+**/bin
+**/obj
+.git
+.gitignore
+.env
+*.log
+pos_system.db
+admin-client/.vite
+frontend/.vite
+backend/uploads

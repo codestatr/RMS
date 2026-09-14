@@ -1,0 +1,7 @@
+/* Revenue Chart Styles */
+.revenue-chart-card {
+  background: white;
+  border: 1px solid var(--neutral-200);
+  border-radius: 16px;
+  padding: 20px;
+}

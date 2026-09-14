@@ -1,0 +1,62 @@
+{
+  "name": "RMS - House Rental & Booking System",
+  "short_name": "RMS Rentals",
+  "description": "Find and book your perfect rental property",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#f59e0b",
+  "background_color": "#ffffff",
+  "categories": ["lifestyle", "utilities"],
+  "screenshots": [
+    {
+      "src": "/screenshots/home-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshots/home-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/rms-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/rms-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/rms-logo-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Browse Properties",
+      "short_name": "Browse",
+      "description": "Browse available rental properties",
+      "url": "/browse",
+      "icons": [{ "src": "/icons/browse.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Bookings",
+      "short_name": "Bookings",
+      "description": "View your booking history",
+      "url": "/dashboard/bookings",
+      "icons": [{ "src": "/icons/bookings.png", "sizes": "192x192" }]
+    }
+  ]
+}

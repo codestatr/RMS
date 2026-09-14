@@ -1,0 +1,68 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-rms_database}
+      MYSQL_USER: ${MYSQL_USER:-rms}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rms_change_me}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_change_me}
+    volumes:
+      - rms_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${MYSQL_DATABASE:-rms_database}
+      DB_USER: ${MYSQL_USER:-rms}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-rms_change_me}
+      JWT_SECRET: ${JWT_SECRET:-replace_this_access_secret}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-replace_this_refresh_secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      DEFAULT_CURRENCY: KES
+      USD_TO_KES_RATE: ${USD_TO_KES_RATE:-130}
+      TAX_RATE: ${TAX_RATE:-0.16}
+      BUSINESS_NAME: ${BUSINESS_NAME:-RMS House Rental Management}
+      BUSINESS_EMAIL: ${BUSINESS_EMAIL:-support@rms-rentals.com}
+      BUSINESS_PHONE: ${BUSINESS_PHONE:-+254 700 000000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+
+volumes:
+  rms_mysql_data:

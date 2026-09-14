@@ -1,0 +1,37 @@
+<UserControl x:Class="RMS.POSSystem.Views.AdminControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="White">
+    <Border Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="12" Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,15">
+                <StackPanel>
+                    <TextBlock Text="POS Shift Oversight &amp; Reconciliation (KES)" FontSize="18" FontWeight="Bold" Foreground="#111827"/>
+                    <TextBlock Text="Inspect cashier reconciliations, Kenyan Shilling cash balances, and shift discrepancies" FontSize="11" Foreground="#6B7280"/>
+                </StackPanel>
+                <Button Content="⚡ Force Full Sync with MySQL" Background="#F59E0B" Foreground="White" FontWeight="Bold" Padding="12,6" FontSize="11" BorderThickness="0" HorizontalAlignment="Right" Click="BtnForceSync_Click"/>
+            </Grid>
+
+            <!-- Shifts Grid in KES -->
+            <DataGrid Grid.Row="1" x:Name="DgShifts" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column" GridLinesVisibility="Horizontal" BorderThickness="1" BorderBrush="#E5E7EB" Background="White" RowHeight="32" FontSize="11">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Cashier ID" Binding="{Binding CashierId}" Width="120"/>
+                    <DataGridTextColumn Header="Open Time" Binding="{Binding OpenTime, StringFormat='yyyy-MM-dd HH:mm'}" Width="130"/>
+                    <DataGridTextColumn Header="Close Time" Binding="{Binding CloseTime, StringFormat='yyyy-MM-dd HH:mm'}" Width="130"/>
+                    <DataGridTextColumn Header="Opening (KES)" Binding="{Binding OpeningBalance, StringFormat='KES {0:N2}'}" Width="110"/>
+                    <DataGridTextColumn Header="Expected (KES)" Binding="{Binding ExpectedClosingBalance, StringFormat='KES {0:N2}'}" Width="110"/>
+                    <DataGridTextColumn Header="Actual (KES)" Binding="{Binding ActualClosingBalance, StringFormat='KES {0:N2}'}" Width="110"/>
+                    <DataGridTextColumn Header="Transactions" Binding="{Binding TransactionCount}" Width="85"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="80"/>
+                    <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Border>
+</UserControl>

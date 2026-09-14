@@ -1,0 +1,11 @@
+.reports-page { max-width:1180px; }
+.reports-page > .flex:first-child { padding:16px; border:1px solid var(--neutral-200); border-radius:14px; background:#fff; }
+.reports-page h2 { color:var(--sidebar-blue-950); }
+.reports-page .admin-card { border:1px solid var(--neutral-200); border-radius:14px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+.reports-page .admin-table tbody tr:hover { background:#fffcf5; }
+.reports-page select { min-height:38px; cursor:pointer; }
+.reports-page button { min-height:36px; cursor:pointer; }
+.reports-page .grid > .admin-card { min-height:112px; }
+.reports-page .bg-neutral-50 { border-radius:12px; }
+.reports-page .admin-table { overflow:hidden; }
+@media (max-width:700px) { .reports-page .admin-table { min-width:720px; } .reports-page > .flex:first-child { align-items:stretch; } }
