@@ -38,17 +38,6 @@ namespace RMS.POSSystem.Views
             {
                 _syncTimer.Stop();
                 AuthService.Logout();
-
-                try
-                {
-                    Application.Current?.Shutdown();
-                }
-                catch
-                {
-                    // ignore shutdown race conditions during close
-                }
-
-                Environment.Exit(0);
             };
         }
 
@@ -86,7 +75,6 @@ namespace RMS.POSSystem.Views
         {
             var inactiveBg = Brushes.Transparent;
             var inactiveFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"));
-            var activeBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
             var activeFg = Brushes.White;
 
             NavBooking.Background = inactiveBg; NavBooking.Foreground = inactiveFg;
@@ -94,7 +82,7 @@ namespace RMS.POSSystem.Views
             NavTransactions.Background = inactiveBg; NavTransactions.Foreground = inactiveFg;
             NavAdmin.Background = inactiveBg; NavAdmin.Foreground = inactiveFg;
 
-            activeBtn.Background = activeBg;
+            activeBtn.SetResourceReference(Button.BackgroundProperty, "AmberBrush");
             activeBtn.Foreground = activeFg;
         }
 
@@ -150,6 +138,7 @@ namespace RMS.POSSystem.Views
 
         private async Task<bool> RunSyncAsync()
         {
+            await SystemBranding.LoadAsync();
             var ok = await _syncService.SyncNowAsync();
             if (ok) _transactionsControl?.RefreshTransactions();
             return ok;
@@ -159,8 +148,9 @@ namespace RMS.POSSystem.Views
         {
             AuthService.Logout();
             var login = new LoginWindow();
+            Application.Current.MainWindow = login;
             login.Show();
-            this.Close();
+            Close();
         }
     }
 }

@@ -7,8 +7,10 @@ import {
   FaMoneyBillWave,
   FaMobileAlt,
   FaCreditCard,
+  FaFilePdf,
 } from 'react-icons/fa';
 import axios from 'axios';
+import { getBranding } from '../../utils/branding';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -30,9 +32,13 @@ export default function CashierTransactions() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [branding, setBranding] = useState(getBranding);
 
   useEffect(() => {
     loadTransactions();
+    const refreshBranding = () => setBranding(getBranding());
+    window.addEventListener('rms:branding-changed', refreshBranding);
+    return () => window.removeEventListener('rms:branding-changed', refreshBranding);
   }, []);
 
   const loadTransactions = async () => {
@@ -43,12 +49,7 @@ export default function CashierTransactions() {
       });
       setTransactions(res.data?.data?.data || res.data?.data || []);
     } catch {
-      // Fallback demo transactions in KES
-      setTransactions([
-        { id: 'tx-1', receiptNumber: 'REC-20260902-1001', customerName: 'David Kamau', propertyName: 'Sunlight Luxury 1-Bedroom Apartment', amount: 16500, method: 'mpesa', status: 'paid', createdAt: new Date().toISOString() },
-        { id: 'tx-2', receiptNumber: 'REC-20260902-1002', customerName: 'John Doe', propertyName: 'Ocean Breeze Beachfront Airbnb Villa', amount: 90000, method: 'cash', status: 'paid', createdAt: new Date(Date.now() - 3600000).toISOString() },
-        { id: 'tx-3', receiptNumber: 'REC-20260902-1003', customerName: 'Sarah Njeri', propertyName: 'Cozy Urban Bedsitter Studio', amount: 5000, method: 'cash', status: 'paid', createdAt: new Date(Date.now() - 7200000).toISOString() },
-      ]);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -66,11 +67,27 @@ export default function CashierTransactions() {
 
   const handleReprintReceipt = (transaction) => {
     setSelectedReceipt(transaction);
-    if (typeof window !== 'undefined' && typeof window.print === 'function') {
-      setTimeout(() => {
-        window.focus();
-        window.print();
-      }, 150);
+  };
+
+  const downloadReceiptPdf = async () => {
+    if (!selectedReceipt?.id) {
+      window.alert('Select a recorded payment to download its receipt.');
+      return;
+    }
+    try {
+      const response = await axios.get(`${API_URL}/receipts/payment/${selectedReceipt.id}/pdf`, {
+        responseType: 'blob',
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
+      });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      const safeBrand = branding.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'Business';
+      link.href = url;
+      link.download = `${safeBrand}-Receipt-${selectedReceipt.receiptNumber || selectedReceipt.id}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      window.alert(`Receipt PDF could not be downloaded: ${error.response?.data?.message || error.message}`);
     }
   };
 
@@ -176,10 +193,11 @@ export default function CashierTransactions() {
               </button>
             </div>
 
-            <div className="receipt-slip">
+            <div className="receipt-slip" style={{ '--receipt-accent': branding.brandColor }}>
               <div className="receipt-slip-header">
-                <h4>RMS RENTAL POS TERMINAL</h4>
-                <p>PIN: P051234567Z | 16% VAT INC</p>
+                {branding.logo && <img src={branding.logo} alt={`${branding.name} logo`} className="receipt-slip-logo" />}
+                <h4>{branding.name}</h4>
+                <p>WALK-IN BOOKING RECEIPT · KES</p>
                 <p>{selectedReceipt.receiptNumber || 'REC-OFFICIAL'}</p>
               </div>
 
@@ -214,6 +232,9 @@ export default function CashierTransactions() {
                 className="receipt-print-button"
               >
                 <FaPrint /> Print Receipt
+              </button>
+              <button onClick={downloadReceiptPdf} className="receipt-pdf-button">
+                <FaFilePdf /> Download PDF
               </button>
               <button
                 onClick={() => setSelectedReceipt(null)}

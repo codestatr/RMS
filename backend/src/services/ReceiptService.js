@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../database/db.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import PdfService from './PdfService.js';
+import { getSystemBranding } from './BrandingService.js';
 
 class ReceiptService {
   async assertAccess(paymentId, user) {
@@ -25,13 +26,8 @@ class ReceiptService {
     return true;
   }
 
-  async generateReceiptPdfBuffer(paymentId, branding = {}) {
+  async generateReceiptPdfBuffer(paymentId) {
     const receipt = await this.generateReceipt(paymentId);
-    receipt.business = {
-      ...receipt.business,
-      ...(branding.name ? { name: branding.name } : {}),
-      ...(branding.logo ? { logo: branding.logo } : {}),
-    };
     return PdfService.generateReceiptPdf(receipt);
   }
 
@@ -103,6 +99,7 @@ class ReceiptService {
     const usdRate = parseFloat(process.env.USD_TO_KES_RATE || '130');
     const amountInUSD = isInternational ? (amount / usdRate).toFixed(2) : null;
 
+    const branding = await getSystemBranding();
     return {
       receiptId,
       receiptNumber,
@@ -143,10 +140,11 @@ class ReceiptService {
         : 'System / Online Gateway',
       issuedAt: payment.created_at,
       business: {
-        name: process.env.BUSINESS_NAME || 'RMS House Rental & Management',
-        email: process.env.BUSINESS_EMAIL || 'support@rms-rentals.com',
-        phone: process.env.BUSINESS_PHONE || '+254 700 000000',
-        pinNumber: 'P051234567Z',
+        name: branding.brandName,
+        brandColor: branding.brandColor,
+        logo: branding.logo,
+        email: process.env.BUSINESS_EMAIL || '',
+        phone: process.env.BUSINESS_PHONE || '',
       },
     };
   }

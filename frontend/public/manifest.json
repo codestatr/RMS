@@ -1,6 +1,6 @@
 {
-  "name": "RMS - House Rental & Booking System",
-  "short_name": "RMS Rentals",
+  "name": "CozyStay - Rentals & Stays",
+  "short_name": "CozyStay",
   "description": "Find and book your perfect rental property",
   "start_url": "/",
   "scope": "/",

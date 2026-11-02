@@ -1,65 +1,56 @@
-const CACHE_NAME = 'rms-v1'
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/src/main.jsx',
-  '/src/index.css'
-]
+const CACHE_NAME = 'cozystay-v2';
+const STATIC_ASSET = /\.(?:js|css|svg|png|jpe?g|webp|ico|woff2?|ttf)$/i;
 
-// Install event - cache resources
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(urlsToCache)
-    })
-  )
-})
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
 
-// Activate event - clean up old caches
-self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName)
-          }
-        })
-      )
-    })
-  )
-})
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    const oldCaches = cacheNames.filter((cacheName) =>
+      cacheName === 'rms-v1' || (cacheName.startsWith('cozystay-') && cacheName !== CACHE_NAME)
+    );
+    await Promise.all(oldCaches.map((cacheName) => caches.delete(cacheName)));
+    await self.clients.claim();
+  })());
+});
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') {
-    return
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const response = await fetch(request);
+        if (response.ok) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put('/index.html', response.clone());
+        }
+        return response;
+      } catch {
+        const cache = await caches.open(CACHE_NAME);
+        return (await cache.match('/index.html')) || Response.error();
+      }
+    })());
+    return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      if (response) {
-        return response
-      }
+  if (!STATIC_ASSET.test(url.pathname)) return;
 
-      return fetch(event.request).then(response => {
-        // Don't cache non-successful responses
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response
-        }
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
+    if (cached) return cached;
 
-        // Clone the response
-        const responseToCache = response.clone()
-
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, responseToCache)
-        })
-
-        return response
-      }).catch(() => {
-        // Return offline page or cached resource
-        return caches.match('/')
-      })
-    })
-  )
-})
+    const response = await fetch(request);
+    if (response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  })());
+});

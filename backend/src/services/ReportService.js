@@ -165,7 +165,26 @@ class ReportService {
   /**
    * Get top properties by revenue
    */
-  async getTopPropertiesByRevenue(limit = 10, month = null) {
+  async getTopPropertiesByRevenue(limit = 10, month = null, startDate = null, endDate = null) {
+    const safeLimit = Math.max(1, Math.min(100, Number.parseInt(limit, 10) || 10))
+
+    if (startDate && endDate) {
+      return query(
+        `SELECT p.id, p.name, p.type, p.city,
+                COALESCE(SUM(pay.amount), 0) AS revenue,
+                COUNT(DISTINCT b.id) AS booking_count,
+                COUNT(pay.id) AS transaction_count
+         FROM properties p
+         JOIN bookings b ON b.property_id = p.id
+         JOIN payments pay ON pay.booking_id = b.id AND pay.status = 'paid'
+         WHERE DATE(pay.created_at) >= ? AND DATE(pay.created_at) <= ?
+         GROUP BY p.id, p.name, p.type, p.city
+         ORDER BY revenue DESC
+         LIMIT ?`,
+        [startDate, endDate, safeLimit]
+      )
+    }
+
     if (!month) {
       month = new Date().toISOString().substring(0, 7)
     }
@@ -179,7 +198,7 @@ class ReportService {
        LIMIT ?`,
       (() => {
         const [year, monthNumber] = month.split('-').map(Number)
-        return [year, monthNumber, limit]
+        return [year, monthNumber, safeLimit]
       })()
     )
 

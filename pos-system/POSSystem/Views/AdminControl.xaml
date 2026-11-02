@@ -15,7 +15,7 @@
                     <TextBlock Text="POS Shift Oversight &amp; Reconciliation (KES)" FontSize="18" FontWeight="Bold" Foreground="#111827"/>
                     <TextBlock Text="Inspect cashier reconciliations, Kenyan Shilling cash balances, and shift discrepancies" FontSize="11" Foreground="#6B7280"/>
                 </StackPanel>
-                <Button Content="⚡ Force Full Sync with MySQL" Background="#F59E0B" Foreground="White" FontWeight="Bold" Padding="12,6" FontSize="11" BorderThickness="0" HorizontalAlignment="Right" Click="BtnForceSync_Click"/>
+                <Button Content="⚡ Force Full Sync with MySQL" Background="{DynamicResource AmberBrush}" Foreground="White" FontWeight="Bold" Padding="12,6" FontSize="11" BorderThickness="0" HorizontalAlignment="Right" Click="BtnForceSync_Click"/>
             </Grid>
 
             <!-- Shifts Grid in KES -->

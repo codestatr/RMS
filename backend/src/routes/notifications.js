@@ -41,12 +41,7 @@ router.post('/staff', authenticate, requireRole('admin', 'cashier'), asyncHandle
   }
 
   if (!recipients.length) {
-    const fallbackCashierEmail = 'cashier@rms.com'
-    const fallbackRecipient = await query('SELECT id FROM users WHERE email = ? AND status = \'active\'', [req.user?.role === 'cashier' ? req.user.email || fallbackCashierEmail : fallbackCashierEmail])
-    if (!fallbackRecipient.length) {
-      throw new ValidationError('No active staff recipient found')
-    }
-    recipients = fallbackRecipient
+    throw new ValidationError('No active staff recipient found')
   }
 
   for (const recipient of recipients) {

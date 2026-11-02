@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
+import crypto from 'crypto'
 import { query, transaction } from '../database/db.js'
 import { hashPassword, comparePassword, generateToken, generateRefreshToken } from '../utils/auth.js'
 import {
@@ -302,6 +303,90 @@ class UserService {
     ])
 
     return { message: 'Password changed successfully' }
+  }
+
+  /** Send a short-lived recovery code to an active staff account. */
+  async requestStaffPasswordReset(email) {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!validateEmail(normalizedEmail)) {
+      return { message: 'If an active staff account matches that email, a recovery code will be sent.' }
+    }
+
+    const users = await query(
+      `SELECT id, email, first_name FROM users
+       WHERE email = ? AND role IN ('admin', 'cashier') AND status = 'active'`,
+      [normalizedEmail]
+    )
+    if (!users.length) {
+      return { message: 'If an active staff account matches that email, a recovery code will be sent.' }
+    }
+
+    const user = users[0]
+    const code = crypto.randomInt(100000, 1000000).toString()
+    const codeHash = crypto.createHash('sha256').update(code).digest('hex')
+    await query(
+      `INSERT INTO staff_password_reset_codes (user_id, code_hash, expires_at, attempts, created_at)
+       VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), 0, NOW())
+       ON DUPLICATE KEY UPDATE code_hash = VALUES(code_hash), expires_at = VALUES(expires_at), attempts = 0, created_at = NOW()`,
+      [user.id, codeHash]
+    )
+
+    const delivered = await NotificationService.sendPasswordResetCode(user.email, user.first_name, code)
+    if (!delivered) {
+      await query('DELETE FROM staff_password_reset_codes WHERE user_id = ?', [user.id])
+    }
+
+    return { message: 'If an active staff account matches that email, a recovery code will be sent.' }
+  }
+
+  /** Validate the recovery code once, then replace the staff password. */
+  async resetStaffPassword(email, code, newPassword) {
+    const normalizedEmail = String(email || '').trim().toLowerCase()
+    if (!validateEmail(normalizedEmail) || !/^\d{6}$/.test(String(code || ''))) {
+      throw new UnauthorizedError('Invalid or expired recovery code')
+    }
+    if (!validatePassword(newPassword)) {
+      throw new ValidationError(
+        'New password must be at least 8 characters with uppercase, lowercase, number, and special character'
+      )
+    }
+
+    const users = await query(
+      `SELECT id FROM users WHERE email = ? AND role IN ('admin', 'cashier') AND status = 'active'`,
+      [normalizedEmail]
+    )
+    if (!users.length) throw new UnauthorizedError('Invalid or expired recovery code')
+
+    const suppliedHash = crypto.createHash('sha256').update(String(code)).digest()
+    const newHash = await hashPassword(newPassword)
+    const resetResult = await transaction(async (connection) => {
+      const [rows] = await connection.execute(
+        `SELECT code_hash, expires_at, attempts FROM staff_password_reset_codes
+         WHERE user_id = ? FOR UPDATE`,
+        [users[0].id]
+      )
+      const reset = rows[0]
+      if (!reset || Number(reset.attempts) >= 5 || new Date(reset.expires_at) <= new Date()) {
+        return false
+      }
+
+      const storedHash = Buffer.from(reset.code_hash, 'hex')
+      const codeMatches = storedHash.length === suppliedHash.length && crypto.timingSafeEqual(storedHash, suppliedHash)
+      if (!codeMatches) {
+        await connection.execute(
+          'UPDATE staff_password_reset_codes SET attempts = attempts + 1 WHERE user_id = ?',
+          [users[0].id]
+        )
+        return false
+      }
+
+      await connection.execute('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?', [newHash, users[0].id])
+      await connection.execute('DELETE FROM staff_password_reset_codes WHERE user_id = ?', [users[0].id])
+      return true
+    })
+
+    if (!resetResult) throw new UnauthorizedError('Invalid or expired recovery code')
+    return { message: 'Password reset successfully. Sign in with your new password.' }
   }
 
   /**

@@ -14,7 +14,7 @@ export default function Staff() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('cashier');
-  const [password, setPassword] = useState('Cashier123!');
+  const [password, setPassword] = useState('');
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -24,7 +24,7 @@ export default function Staff() {
     setEmail('');
     setPhone('');
     setRole('cashier');
-    setPassword('Cashier123!');
+    setPassword('');
   };
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function Staff() {
         headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
       });
       const allUsers = res.data?.data?.data || [];
-      setStaffList(allUsers.filter((u) => ['admin', 'cashier'].includes(u.role)));
+      setStaffList(allUsers.filter((u) => ['admin', 'cashier', 'property_owner'].includes(u.role)));
     } catch (e) {
       setStaffList([]);
       setStaffError(e.response?.data?.message || e.response?.data?.error || 'Unable to load staff accounts.');
@@ -199,6 +199,7 @@ export default function Staff() {
                   <select value={role} onChange={(e) => setRole(e.target.value)} className="form-input">
                     <option value="cashier">POS Cashier (Restricted)</option>
                     <option value="admin">Administrator (Full Access)</option>
+                    <option value="property_owner">Property Owner (Owner Portal)</option>
                   </select>
                 </div>
                 <div className="form-field">

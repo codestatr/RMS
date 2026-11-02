@@ -52,16 +52,8 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
       setProperties(list);
       if (list.length > 0) setSelectedPropertyId(list[0].id);
     } catch {
-      // Fallback demo properties in KES
-      const fallbackList = [
-        { id: 'prop-101', name: 'Sunlight Luxury 1-Bedroom Apartment', type: 'one_bedroom', price_per_night: 5500, address: 'Woodvale Grove, Westlands', capacity: 2 },
-        { id: 'prop-102', name: 'Ocean Breeze Beachfront Airbnb Villa', type: 'airbnb', price_per_night: 18000, address: 'Diani Beach Road', capacity: 6 },
-        { id: 'prop-103', name: 'Cozy Urban Bedsitter Studio', type: 'bedsitter', price_per_night: 2500, address: 'Ngong Road, Kilimani', capacity: 1 },
-        { id: 'prop-104', name: 'Lakeview Executive Bed & Breakfast', type: 'bnb', price_per_night: 6500, address: 'Riat Hills, Kisumu', capacity: 3 },
-        { id: 'prop-105', name: 'Downtown Executive Single Room Suite', type: 'single_room', price_per_night: 3500, address: 'Kenyatta Avenue, CBD', capacity: 1 },
-      ];
-      setProperties(fallbackList);
-      setSelectedPropertyId(fallbackList[0].id);
+      setProperties([]);
+      setSelectedPropertyId('');
     }
   };
 
@@ -72,7 +64,7 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
     Math.round((new Date(checkOutDate) - new Date(checkInDate)) / (1000 * 60 * 60 * 24))
   );
 
-  const pricePerNight = Number(selectedProperty?.price_per_night || selectedProperty?.pricePerNight || 5500);
+  const pricePerNight = Number(selectedProperty?.price_per_night ?? selectedProperty?.pricePerNight ?? 0);
   const subtotal = pricePerNight * nights;
   const vatTax = Math.round(subtotal * 0.16);
   const totalBeforeDiscount = subtotal + vatTax;
@@ -83,6 +75,11 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
     e.preventDefault();
     if (!activeShift && !allowWithoutShift) {
       alert('Please open your Cashier Shift before taking walk-in bookings.');
+      return;
+    }
+
+    if (!selectedProperty) {
+      alert('No available property is loaded. Check the backend connection and property availability.');
       return;
     }
 
@@ -156,9 +153,10 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
                 onChange={(e) => setSelectedPropertyId(e.target.value)}
                 className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs font-bold text-neutral-800"
               >
+                {properties.length === 0 && <option value="">No available properties loaded</option>}
                 {properties.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.name} ({p.type?.replace('_', ' ')}) — KES {Number(p.price_per_night || p.pricePerNight || 5500).toLocaleString()}/night
+                    {p.name} ({p.type?.replace('_', ' ')}) — KES {Number(p.price_per_night ?? p.pricePerNight ?? 0).toLocaleString()}/night
                   </option>
                 ))}
               </select>
@@ -239,7 +237,7 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
                 <input
                   type="text"
                   required
-                  placeholder="e.g. David Kamau"
+                  placeholder="Guest full name"
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                   className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-xs font-semibold"
@@ -251,7 +249,7 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
                 <input
                   type="tel"
                   required
-                  placeholder="e.g. 0712345678"
+                  placeholder="Guest phone number"
                   value={guestPhone}
                   onChange={(e) => setGuestPhone(e.target.value)}
                   className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-xs font-semibold"
@@ -262,7 +260,7 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
                 <label className="block text-xs font-bold text-neutral-600 mb-1">National ID / Passport No.</label>
                 <input
                   type="text"
-                  placeholder="e.g. ID-32910291"
+                  placeholder="Guest identification number"
                   value={guestIdNumber}
                   onChange={(e) => setGuestIdNumber(e.target.value)}
                   className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-xs font-mono"
@@ -273,7 +271,7 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
                 <label className="block text-xs font-bold text-neutral-600 mb-1">Special Notes / Requests</label>
                 <input
                   type="text"
-                  placeholder="e.g. Extra key requested"
+                  placeholder="Add booking notes"
                   value={specialRequests}
                   onChange={(e) => setSpecialRequests(e.target.value)}
                   className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-xs"
@@ -351,9 +349,9 @@ export default function CashierWalkIn({ activeShift, onProceedToPayment, allowWi
 
             <button
               type="submit"
-              disabled={!activeShift && !allowWithoutShift}
+              disabled={(!activeShift && !allowWithoutShift) || !selectedProperty}
               className={`pos-submit-button ${
-                activeShift || allowWithoutShift
+                (activeShift || allowWithoutShift) && selectedProperty
                   ? 'bg-amber-500 hover:bg-amber-600 text-white cursor-pointer'
                   : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
               }`}

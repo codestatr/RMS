@@ -1,28 +1,24 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import { FaBell, FaPaperPlane, FaEnvelope, FaCheck } from 'react-icons/fa'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 const authConfig = () => ({ headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` } })
 
-const fallbackCashierEmail = 'cashier@rms.com'
-
-export default function NotificationsBell({ compact = false }) {
+export default function NotificationsBell({ compact = false, userRole = 'admin' }) {
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
-  const [recipientRole, setRecipientRole] = useState('cashier')
-  const [recipientEmail, setRecipientEmail] = useState(fallbackCashierEmail)
+  const [recipientRole, setRecipientRole] = useState(userRole === 'cashier' ? 'admin' : 'cashier')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [panelPosition, setPanelPosition] = useState({ left: 12, bottom: 80 })
+  const widgetRef = useRef(null)
+  const triggerRef = useRef(null)
 
-  const currentUser = useMemo(() => {
-    try {
-      return JSON.parse(sessionStorage.getItem('rms_admin_user') || localStorage.getItem('rms_admin_user') || '{}')
-    } catch {
-      return {}
-    }
-  }, [])
+  useEffect(() => {
+    setRecipientRole(userRole === 'cashier' ? 'admin' : 'cashier')
+  }, [userRole])
 
   async function load() {
     try {
@@ -34,17 +30,49 @@ export default function NotificationsBell({ compact = false }) {
   }
 
   useEffect(() => {
-    const userEmail = currentUser?.email || fallbackCashierEmail
-    setRecipientEmail(userEmail)
-  }, [currentUser?.email])
-
-  useEffect(() => {
     load()
     const interval = setInterval(load, 15000)
     return () => clearInterval(interval)
   }, [])
 
   const unread = notifications.filter((item) => !item.read_at).length
+
+  function updatePanelPosition() {
+    const bounds = triggerRef.current?.getBoundingClientRect()
+    if (!bounds) return
+    setPanelPosition({
+      left: Math.max(12, Math.min(bounds.right + 12, window.innerWidth - 352)),
+      bottom: Math.max(12, window.innerHeight - bounds.top + 8),
+    })
+  }
+
+  function toggleInbox() {
+    if (open) {
+      setOpen(false)
+      return
+    }
+    updatePanelPosition()
+    setOpen(true)
+  }
+
+  useEffect(() => {
+    if (!open) return undefined
+    const closeOnOutsideClick = (event) => {
+      if (!widgetRef.current?.contains(event.target)) setOpen(false)
+    }
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    updatePanelPosition()
+    window.addEventListener('resize', updatePanelPosition)
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('resize', updatePanelPosition)
+      document.removeEventListener('mousedown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [open])
 
   async function markRead(id) {
     await axios.patch(`${API_URL}/notifications/${id}/read`, {}, authConfig())
@@ -61,7 +89,6 @@ export default function NotificationsBell({ compact = false }) {
     try {
       const requestPayload = {
         recipientRole,
-        recipientEmail: recipientEmail || currentUser?.email || fallbackCashierEmail,
         title: trimmedTitle,
         message: trimmedMessage,
       }
@@ -76,12 +103,15 @@ export default function NotificationsBell({ compact = false }) {
   }
 
   return (
-    <div className={`notifications-widget ${compact ? 'compact' : ''}`}>
+    <div ref={widgetRef} className={`notifications-widget ${compact ? 'compact' : ''}`}>
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        ref={triggerRef}
+        onClick={toggleInbox}
         className="notifications-trigger"
         title="Internal staff inbox"
+        aria-expanded={open}
+        aria-controls="staff-inbox-panel"
       >
         <FaBell />
         <span className="notifications-label">Inbox</span>
@@ -89,10 +119,10 @@ export default function NotificationsBell({ compact = false }) {
       </button>
 
       {open && (
-        <div className="notifications-panel">
+        <div id="staff-inbox-panel" className="notifications-panel" style={panelPosition}>
           <div className="notifications-header">
             <div>
-              <strong>Cashier communication</strong>
+              <strong>Staff inbox</strong>
               <span>{unread} unread</span>
             </div>
             <FaEnvelope className="text-amber-500" />
@@ -127,16 +157,6 @@ export default function NotificationsBell({ compact = false }) {
                 <option value="cashier">Cashier inbox</option>
                 <option value="admin">Admin team</option>
               </select>
-            </label>
-
-            <label className="notifications-field">
-              <span>Cashier email</span>
-              <input
-                type="email"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-                placeholder={fallbackCashierEmail}
-              />
             </label>
 
             <label className="notifications-field">

@@ -11,7 +11,7 @@
 
             <!-- Left: Payment Method & Tender Amount in KES -->
             <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                <Button Content="&larr; Back to Booking Details" Background="Transparent" Foreground="#6B7280" BorderThickness="0" HorizontalAlignment="Left" Margin="0,0,0,10" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Click="BtnBack_Click"/>
+                <Button Content="← Back to Booking Details" Background="Transparent" Foreground="#6B7280" BorderThickness="0" HorizontalAlignment="Left" Margin="0,0,0,10" FontSize="11" FontWeight="SemiBold" Cursor="Hand" Click="BtnBack_Click"/>
                 <TextBlock Text="Collect Payment (KES)" FontSize="18" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,15"/>
 
                 <!-- Method Buttons -->
@@ -21,7 +21,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Button x:Name="BtnMethodCash" Grid.Column="0" Content="💵 Cash (KES)" Height="40" Background="#F59E0B" Foreground="White" FontWeight="Bold" FontSize="12" BorderThickness="0" Margin="2" Click="BtnMethodCash_Click"/>
+                    <Button x:Name="BtnMethodCash" Grid.Column="0" Content="💵 Cash (KES)" Height="40" Background="{DynamicResource AmberBrush}" Foreground="White" FontWeight="Bold" FontSize="12" BorderThickness="0" Margin="2" Click="BtnMethodCash_Click"/>
                     <Button x:Name="BtnMethodCard" Grid.Column="1" Content="💳 Card (KES)" Height="40" Background="#F3F4F6" Foreground="#374151" FontWeight="SemiBold" FontSize="12" BorderThickness="0" Margin="2" Click="BtnMethodCard_Click"/>
                     <Button x:Name="BtnMethodMpesa" Grid.Column="2" Content="📱 M-Pesa (KES)" Height="40" Background="#F3F4F6" Foreground="#374151" FontWeight="SemiBold" FontSize="12" BorderThickness="0" Margin="2" Click="BtnMethodMpesa_Click"/>
                 </Grid>
@@ -62,9 +62,9 @@
                     <StackPanel>
                         <TextBlock Text="Transaction Details (KES)" FontSize="14" FontWeight="Bold" Foreground="#111827" Margin="0,0,0,10"/>
 
-                        <TextBlock x:Name="TxtPropSummary" Text="Luxury 1-Bedroom Apartment" FontSize="12" FontWeight="Bold" Foreground="#1F2937"/>
-                        <TextBlock x:Name="TxtGuestSummary" Text="Guest: David Kamau" FontSize="11" Foreground="#4B5563" Margin="0,2,0,0"/>
-                        <TextBlock x:Name="TxtDatesSummary" Text="2026-09-05 to 2026-09-08 (3 Nights)" FontSize="11" Foreground="#6B7280" Margin="0,2,0,10"/>
+                        <TextBlock x:Name="TxtPropSummary" Text="Selected property will appear here" FontSize="12" FontWeight="Bold" Foreground="#1F2937"/>
+                        <TextBlock x:Name="TxtGuestSummary" Text="Guest details will appear here" FontSize="11" Foreground="#4B5563" Margin="0,2,0,0"/>
+                        <TextBlock x:Name="TxtDatesSummary" Text="Stay dates will appear here" FontSize="11" Foreground="#6B7280" Margin="0,2,0,10"/>
 
                         <Separator Background="#E5E7EB" Margin="0,4,0,10"/>
 
@@ -74,7 +74,7 @@
                         </Grid>
                     </StackPanel>
 
-                    <Button x:Name="BtnCompleteTransaction" Content="✓ Complete &amp; Print Receipt" Height="44" Background="#10B981" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand" Click="BtnCompleteTransaction_Click"/>
+                    <Button x:Name="BtnCompleteTransaction" Content="✓ Complete &amp; Print Receipt" Height="44" Background="{DynamicResource AccentBrush}" Foreground="White" FontWeight="Bold" FontSize="13" BorderThickness="0" Cursor="Hand" Click="BtnCompleteTransaction_Click"/>
                 </StackPanel>
             </Border>
         </Grid>

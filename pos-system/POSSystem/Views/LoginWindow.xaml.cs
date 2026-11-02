@@ -26,6 +26,7 @@ namespace RMS.POSSystem.Views
             if (_authService.Login(ident, pass, out string error))
             {
                 var mainWindow = new MainWindow(_db);
+                Application.Current.MainWindow = mainWindow;
                 mainWindow.Show();
                 this.Close();
             }

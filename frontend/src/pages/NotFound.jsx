@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaHome, FaSearch } from 'react-icons/fa';
 
+
 export default function NotFound() {
   return (
     <div className="min-h-[75vh] bg-neutral-50 flex items-center justify-center px-4 py-16">

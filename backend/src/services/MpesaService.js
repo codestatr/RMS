@@ -64,7 +64,7 @@ class MpesaService {
         PhoneNumber: normalizePhone(phone),
         CallBackURL: process.env.MPESA_CALLBACK_URL,
         AccountReference: accountReference || process.env.MPESA_ACCOUNT_REFERENCE || bookingId,
-        TransactionDesc: description || process.env.MPESA_TRANSACTION_DESCRIPTION || 'RMS Booking Payment',
+        TransactionDesc: description || process.env.MPESA_TRANSACTION_DESCRIPTION || 'CozyStay Booking Payment',
       },
       { headers: { Authorization: `Bearer ${accessToken}` }, timeout: 20000 }
     )

@@ -4,18 +4,21 @@
              Startup="Application_Startup"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
-        <SolidColorBrush x:Key="InkBrush" Color="#17202A" />
-        <SolidColorBrush x:Key="InkSoftBrush" Color="#24313D" />
-        <SolidColorBrush x:Key="CanvasBrush" Color="#F5F7F8" />
-        <SolidColorBrush x:Key="LineBrush" Color="#E4E9ED" />
-        <SolidColorBrush x:Key="AmberBrush" Color="#F59E0B" />
+        <SolidColorBrush x:Key="InkBrush" Color="#20211F" />
+        <SolidColorBrush x:Key="InkSoftBrush" Color="#2D2D2D" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#696D68" />
+        <SolidColorBrush x:Key="CanvasBrush" Color="#F9F9F8" />
+        <SolidColorBrush x:Key="LineBrush" Color="#DEDFDB" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#176B52" />
+        <SolidColorBrush x:Key="AmberBrush" Color="#176B52" />
+        <SolidColorBrush x:Key="AmberDarkBrush" Color="#145A46" />
         <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="InputBorderBrush" Color="#CBD5DC" />
-        <CornerRadius x:Key="PanelRadius">10</CornerRadius>
+        <SolidColorBrush x:Key="InputBorderBrush" Color="#C9CBC6" />
+        <CornerRadius x:Key="PanelRadius">4</CornerRadius>
         <Style TargetType="Button">
             <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Padding" Value="12,7" />
+            <Setter Property="Padding" Value="14,9" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style TargetType="TextBox">
@@ -47,21 +50,21 @@
             <Setter Property="FontFamily" Value="Segoe UI" />
             <Setter Property="Foreground" Value="#24313D" />
             <Setter Property="RowBackground" Value="#FFFFFF" />
-            <Setter Property="AlternatingRowBackground" Value="#F8FAFB" />
-            <Setter Property="HorizontalGridLinesBrush" Value="#E4E9ED" />
-            <Setter Property="VerticalGridLinesBrush" Value="#EEF1F3" />
+            <Setter Property="AlternatingRowBackground" Value="#F9F9F8" />
+            <Setter Property="HorizontalGridLinesBrush" Value="#ECEDE9" />
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent" />
             <Setter Property="HeadersVisibility" Value="Column" />
         </Style>
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#EEF2F4" />
-            <Setter Property="Foreground" Value="#53616B" />
+            <Setter Property="Background" Value="#F0F0ED" />
+            <Setter Property="Foreground" Value="#696D68" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="9,7" />
-            <Setter Property="BorderBrush" Value="#DCE3E8" />
-            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="BorderBrush" Value="#DEDFDB" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
         <Style TargetType="DataGridRow">
-            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="MinHeight" Value="46" />
         </Style>
     </Application.Resources>
 </Application>

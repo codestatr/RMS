@@ -21,6 +21,14 @@ export async function initializeDatabase() {
     enableKeepAlive: true,
   })
 
+  const [ownerRole] = await pool.query(
+    `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'`
+  )
+  if (ownerRole[0] && !ownerRole[0].COLUMN_TYPE.includes("'property_owner'")) {
+    await pool.query("ALTER TABLE users MODIFY COLUMN role ENUM('customer', 'admin', 'cashier', 'property_owner') NOT NULL DEFAULT 'customer'")
+  }
+
   // Prevent silent crashes when idle connections are closed by MySQL
   pool.on('connection', (connection) => {
     connection.on('error', (err) => {
@@ -106,6 +114,34 @@ export async function initializeDatabase() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      setting_key VARCHAR(100) PRIMARY KEY,
+      setting_value LONGTEXT NOT NULL,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS staff_password_reset_codes (
+      user_id VARCHAR(36) PRIMARY KEY,
+      code_hash CHAR(64) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      KEY idx_staff_reset_expiry (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  const [settingValueColumn] = await pool.query(
+    `SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'system_settings' AND COLUMN_NAME = 'setting_value'`
+  )
+  if (settingValueColumn[0]?.DATA_TYPE !== 'longtext') {
+    await pool.query('ALTER TABLE system_settings MODIFY COLUMN setting_value LONGTEXT NOT NULL')
+  }
+  await pool.query(
+    "INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('brand_color', '#176b52'), ('brand_name', 'CozyStay'), ('brand_logo', '')"
+  )
   await pool.query(`
     CREATE TABLE IF NOT EXISTS booking_addons (
       id VARCHAR(36) PRIMARY KEY,

@@ -7,10 +7,10 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>RMS.POSSystem</RootNamespace>
     <AssemblyName>RMS.POSSystem</AssemblyName>
-    <Title>RMS Point of Sale System</Title>
-    <Description>RMS House Rental - Point of Sale (POS) System for cashiers and administrators</Description>
-    <Company>RMS</Company>
-    <Product>RMS POS</Product>
+    <Title>CozyStay Point of Sale</Title>
+    <Description>CozyStay point of sale system for cashiers and administrators</Description>
+    <Company>CozyStay</Company>
+    <Product>CozyStay POS</Product>
     <Version>1.0.0</Version>
   </PropertyGroup>
 

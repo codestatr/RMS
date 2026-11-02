@@ -28,6 +28,8 @@ import wishlistRoutes from './routes/wishlist.js';
 import auditRoutes from './routes/audit.js';
 import endOfDayRoutes from './routes/endOfDay.js';
 import notificationRoutes from './routes/notifications.js';
+import settingsRoutes from './routes/settings.js';
+import ownerPortalRoutes from './routes/ownerPortal.js';
 
 // Import error handling and database
 import { errorHandler } from './utils/errors.js';
@@ -97,6 +99,8 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/end-of-day', endOfDayRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/owner-portal', ownerPortalRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -110,7 +114,7 @@ app.get('/health', (req, res) => {
 // API documentation endpoint
 app.get('/api', (req, res) => {
   res.json({
-    message: 'RMS House Rental & Booking Management System API',
+    message: 'CozyStay House Rental & Booking Management System API',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
@@ -124,6 +128,7 @@ app.get('/api', (req, res) => {
       receipts: '/api/receipts',
       reviews: '/api/reviews',
       wishlist: '/api/wishlist',
+      settings: '/api/settings',
     },
   });
 });
@@ -155,7 +160,7 @@ async function startServer() {
     const server = app.listen(PORT, BIND_HOST, () => {
       console.log(`
 ╔════════════════════════════════════════════════════╗
-║  RMS Backend API Server Started                    ║
+║  CozyStay Backend API Server Started               ║
 ╟────────────────────────────────────────────────────╢
 ║  Host: ${PUBLIC_HOST.padEnd(37)}║
 ║  Port: ${PORT.toString().padEnd(37)}║

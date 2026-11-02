@@ -19,6 +19,7 @@ import CashierTerminal from './pages/CashierTerminal';
 import AuditLogs from './pages/AuditLogs';
 import EndOfDay from './pages/EndOfDay';
 import CashierTransactions from './pages/cashier/CashierTransactions';
+import OwnerPortal from './pages/OwnerPortal';
 import '../styles/app.css';
 import '../styles/dashboard.css';
 import '../styles/bookings.css';
@@ -31,8 +32,12 @@ import '../styles/shifts.css';
 import '../styles/calendar.css';
 import '../styles/maintenance.css';
 import '../styles/cashier-transactions.css';
+import '../styles/reports.css';
+import '../styles/end-of-day.css';
 import '../styles/cashier-shifts.css';
 import '../styles/kpi-card.css';
+import { applyBrandColor } from './utils/brandTheme';
+import { getBranding, saveBranding } from './utils/branding';
 
 /**
  * Main Admin Client App Component
@@ -61,6 +66,28 @@ export default function App() {
     sessionStorage.removeItem('rms_admin_user');
     setUser(null);
     setCurrentPage('dashboard');
+  }, []);
+
+  useEffect(() => {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+    const refreshBrandColor = () => {
+      fetch(`${apiUrl}/settings/branding`)
+        .then((response) => response.ok ? response.json() : Promise.reject(new Error('Brand settings unavailable')))
+        .then((response) => {
+          const shared = response?.data || {};
+          const current = getBranding();
+          saveBranding({
+            name: shared.brandName || current.name,
+            logo: typeof shared.logo === 'string' ? shared.logo : current.logo,
+            brandColor: shared.brandColor || current.brandColor,
+          });
+          applyBrandColor(shared.brandColor);
+        })
+        .catch(() => applyBrandColor());
+    };
+    refreshBrandColor();
+    const interval = window.setInterval(refreshBrandColor, 60000);
+    return () => window.clearInterval(interval);
   }, []);
 
   // Listen for sync status updates from Electron main process
@@ -105,7 +132,19 @@ export default function App() {
   }, [user]);
 
   if (!user) {
-    return <Login onLogin={setUser} />;
+    return <Login onLogin={(authUser) => { setUser(authUser); setCurrentPage(authUser.role === 'property_owner' ? 'owner_portal' : 'dashboard'); }} />;
+  }
+
+  if (user.role === 'property_owner') {
+    return (
+      <div className="app-container">
+        <Sidebar currentPage="owner_portal" onPageChange={() => {}} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} syncStatus={syncStatus} user={user} userRole={user.role} onLogout={logout} />
+        <main className="main-content">
+          <header className="page-header"><h1 className="page-title">Owner Portal</h1></header>
+          <div className="page-content"><OwnerPortal user={user} onUserUpdate={setUser} /></div>
+        </main>
+      </div>
+    );
   }
 
   // Render page based on current selection
@@ -170,7 +209,7 @@ export default function App() {
       staff: 'Staff & Role Permissions',
       customers: 'Customer Accounts & Verification',
       sync: 'Offline SQLite Sync Hub',
-      settings: 'System & Tax Settings',
+      settings: 'Settings',
       reports: 'Reports & Analytics',
       reviews: 'Review Moderation',
       hospitality: 'Guest Services & Hospitality Approvals',
@@ -178,6 +217,7 @@ export default function App() {
       calendar: 'Availability Matrix & Calendar',
       audit: 'Activity Audit Trail',
       end_of_day: 'End-of-Day Summary',
+      owner_portal: 'Owner Portal',
     };
     return titles[currentPage] || 'Admin Portal';
   };

@@ -1,10 +1,10 @@
-# RMS Database Documentation
+# CozyStay Database Documentation
 
-Comprehensive guide to the House Rental & Booking Management System database schema.
+Comprehensive guide to the CozyStay House Rental & Booking Management System database schema.
 
 ## Overview
 
-The RMS system uses:
+CozyStay uses:
 - **MySQL** as the central database (source of truth)
 - **SQLite** for offline-first sync on Admin Client and POS System
 - **Firebase** for real-time features (supplementary)

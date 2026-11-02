@@ -8,7 +8,7 @@ namespace RMS.POSSystem
 {
     public partial class App : Application
     {
-        private void Application_Startup(object sender, StartupEventArgs e)
+        private async void Application_Startup(object sender, StartupEventArgs e)
         {
             AuthService.Logout();
 
@@ -19,6 +19,7 @@ namespace RMS.POSSystem
 
             try
             {
+                await SystemBranding.LoadAsync();
                 var db = new POSDatabase("pos_system.db");
                 db.Initialize();
 

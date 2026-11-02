@@ -203,6 +203,9 @@ router.get(
   '/owner/:ownerId',
   authenticate,
   asyncHandler(async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.id !== req.params.ownerId) {
+      throw new ValidationError('You can only view your own properties')
+    }
     const { page = 1, limit = 20 } = req.query
 
     const result = await PropertyService.getPropertiesByOwner(

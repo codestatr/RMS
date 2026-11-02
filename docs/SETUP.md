@@ -1,6 +1,6 @@
-# RMS Setup Guide
+# CozyStay Setup Guide
 
-Complete setup instructions for the House Rental & Booking Management System.
+Complete setup instructions for the CozyStay House Rental & Booking Management System.
 
 ## Table of Contents
 
@@ -65,7 +65,9 @@ Key variables to configure:
 - JWT secrets
 - Payment gateway keys
 - Firebase configuration
-- Email/SMS settings
+- SMTP settings for email delivery
+
+Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, and `SMTP_PASS` to your mail provider's credentials. Staff password recovery codes are delivered to the email on the staff account; without working SMTP settings, recovery email cannot be delivered.
 
 #### Frontend (`.env`)
 
@@ -138,7 +140,7 @@ npm install
 ### 3. Create `.env` File
 
 ```bash
-cp .env.example .env
+cp backend/.env.example backend/.env
 ```
 
 Edit `.env` with your configuration:
@@ -154,20 +156,29 @@ DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=rms_database
 
-JWT_SECRET=your_secret_key_here
-JWT_EXPIRY=24h
+JWT_SECRET=<generate a unique random secret>
+JWT_REFRESH_SECRET=<generate a separate unique random secret>
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
+
+INITIAL_ADMIN_EMAIL=
+INITIAL_ADMIN_PASSWORD=
+INITIAL_ADMIN_FIRST_NAME=
+INITIAL_ADMIN_LAST_NAME=
 
 STRIPE_SECRET_KEY=your_stripe_key
 MPESA_CONSUMER_KEY=your_mpesa_key
 # ... other configurations
 ```
 
-### 4. Run Migrations/Seed (Optional)
+### 4. Prepare the Database and Administrator (Optional)
 
 ```bash
 npm run migrate
 npm run seed
 ```
+
+The seed command creates or updates the schema without deleting database records or inserting sample business data. It creates an administrator only when `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`, `INITIAL_ADMIN_FIRST_NAME`, and `INITIAL_ADMIN_LAST_NAME` are set in the backend environment file. Set a unique password for your installation; no default accounts or example listings are created.
 
 ### 5. Start Development Server
 

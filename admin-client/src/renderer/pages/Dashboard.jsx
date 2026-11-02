@@ -33,11 +33,11 @@ const resolveGuestName = (booking = {}) => {
 
 export default function Dashboard({ onNavigate, user, userRole }) {
   const [kpis, setKpis] = useState({
-    monthlyRevenue: 111500, // KES
-    activeBookings: 4,
-    availableUnits: 6,
-    occupancyRate: 82,
-    avgDailyRate: 6200, // KES
+    monthlyRevenue: 0,
+    activeBookings: 0,
+    availableUnits: 0,
+    occupancyRate: 0,
+    avgDailyRate: 0,
   });
 
   const [recentBookings, setRecentBookings] = useState([]);
@@ -70,38 +70,23 @@ export default function Dashboard({ onNavigate, user, userRole }) {
       setRecentBookings(allBookings);
 
       const allProps = propRes.data?.data?.data || propRes.data?.data || [];
-      const totalUnits = allProps.length || 6;
+      const totalUnits = allProps.length;
       const occupied = allBookings.filter((b) => b.status === 'checked_in' || b.status === 'confirmed').length;
-      const occRate = Math.round((occupied / totalUnits) * 100) || 75;
+      const occRate = totalUnits ? Math.round((occupied / totalUnits) * 100) : 0;
 
       const liveKpis = kpiRes.data?.data || {};
       setKpis({
         monthlyRevenue: Number(liveKpis.totalRevenue || 0),
         activeBookings: Number(liveKpis.totalBookings || occupied || 0),
-        availableUnits: Number(liveKpis.totalProperties || totalUnits),
-        occupancyRate: Number(liveKpis.occupancyRate || occRate),
+        availableUnits: Number(liveKpis.totalProperties ?? totalUnits),
+        occupancyRate: Number(liveKpis.occupancyRate ?? occRate),
         avgDailyRate: Number(liveKpis.totalBookings ? liveKpis.totalRevenue / liveKpis.totalBookings : 0),
       });
 
-      setCategoryBreakdown([
-        { type: 'Airbnb Villas', revenue: 54000, percentage: 48, color: 'bg-amber-500' },
-        { type: 'One Bedrooms', revenue: 33000, percentage: 30, color: 'bg-sky-500' },
-        { type: 'Bed & Breakfast', revenue: 13000, percentage: 12, color: 'bg-emerald-500' },
-        { type: 'Bedsitters & Single Rooms', revenue: 11500, percentage: 10, color: 'bg-indigo-500' },
-      ]);
     } catch {
-      // Fallback demo state in KES
-      setRecentBookings([
-        { id: 'book-201', guestName: 'David Kamau', propertyName: 'Sunlight Luxury 1-Bedroom Apartment', checkInDate: '2026-09-05', checkOutDate: '2026-09-08', totalAmount: 16500, status: 'confirmed', source: 'website' },
-        { id: 'book-202', guestName: 'John Doe', propertyName: 'Ocean Breeze Beachfront Airbnb Villa', checkInDate: '2026-09-10', checkOutDate: '2026-09-15', totalAmount: 90000, status: 'checked_in', source: 'pos' },
-        { id: 'book-203', guestName: 'Sarah Njeri', propertyName: 'Cozy Urban Bedsitter Studio', checkInDate: '2026-09-20', checkOutDate: '2026-09-22', totalAmount: 5000, status: 'pending', source: 'website' },
-      ]);
-      setCategoryBreakdown([
-        { type: 'Airbnb Villas', revenue: 54000, percentage: 48, color: 'bg-amber-500' },
-        { type: 'One Bedrooms', revenue: 33000, percentage: 30, color: 'bg-sky-500' },
-        { type: 'Bed & Breakfast', revenue: 13000, percentage: 12, color: 'bg-emerald-500' },
-        { type: 'Bedsitters & Single Rooms', revenue: 11500, percentage: 10, color: 'bg-indigo-500' },
-      ]);
+      setRecentBookings([]);
+      setCategoryBreakdown([]);
+      setKpis({ monthlyRevenue: 0, activeBookings: 0, availableUnits: 0, occupancyRate: 0, avgDailyRate: 0 });
     } finally {
       setLoading(false);
     }
@@ -236,6 +221,7 @@ export default function Dashboard({ onNavigate, user, userRole }) {
           </div>
 
           <div className="revenue-breakdown-list">
+            {categoryBreakdown.length === 0 && <p className="text-neutral-500">Category revenue data is unavailable.</p>}
             {categoryBreakdown.map((cat, idx) => (
               <div key={idx} className="revenue-breakdown-row">
                 <div className="revenue-row-labels">
@@ -327,6 +313,7 @@ export default function Dashboard({ onNavigate, user, userRole }) {
             </tr>
           </thead>
           <tbody>
+            {!loading && recentBookings.length === 0 && <tr><td colSpan="6">No reservations recorded.</td></tr>}
             {recentBookings.map((b) => {
               const customerName = resolveGuestName(b);
 

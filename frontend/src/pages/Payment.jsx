@@ -13,6 +13,7 @@ import {
 } from 'react-icons/fa';
 import { bookingService } from '../services/bookingService';
 import { paymentService } from '../services/paymentService';
+import ReceiptPrint from '../components/ReceiptPrint';
 import { useAuthStore } from '../store/authStore';
 import { formatKES, formatUSD, kesToUsd, USD_EXCHANGE_RATE } from '../utils/currency';
 import toast from 'react-hot-toast';
@@ -22,15 +23,15 @@ export default function Payment() {
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
 
-  const initialAmountKES = parseFloat(searchParams.get('amount') || '5500');
-  const totalAmountKES = parseFloat(searchParams.get('total') || initialAmountKES);
+  const requestedAmountKES = Number(searchParams.get('amount'));
+  const requestedTotalKES = Number(searchParams.get('total'));
 
   const [booking, setBooking] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState('mpesa'); // 'mpesa' | 'card' | 'paypal'
 
   // M-Pesa State
-  const [mpesaPhone, setMpesaPhone] = useState(user?.phone || '0712345678');
+  const [mpesaPhone, setMpesaPhone] = useState(user?.phone || '');
   const [stkWaiting, setStkWaiting] = useState(false);
   const [checkoutRequestId, setCheckoutRequestId] = useState('');
   const [stkSecondsRemaining, setStkSecondsRemaining] = useState(120);
@@ -45,6 +46,14 @@ export default function Payment() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [receiptData, setReceiptData] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const bookingTotalKES = Number(booking?.totalAmount ?? booking?.total_amount ?? 0);
+  const initialAmountKES = Number.isFinite(requestedAmountKES) && requestedAmountKES > 0
+    ? requestedAmountKES
+    : bookingTotalKES;
+  const totalAmountKES = Number.isFinite(requestedTotalKES) && requestedTotalKES > 0
+    ? requestedTotalKES
+    : bookingTotalKES;
 
   useEffect(() => {
     async function loadBooking() {
@@ -176,8 +185,6 @@ export default function Payment() {
 
   // Success / Receipt Screen
   if (paymentSuccess && receiptData) {
-    const isPaypalReceipt = receiptData.billing.paymentMethod === 'paypal';
-
     return (
       <div className="min-h-screen bg-neutral-50 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-2xl border border-neutral-200 p-8 sm:p-10">
@@ -191,75 +198,9 @@ export default function Payment() {
             </p>
           </div>
 
-          {/* Printable Official Receipt */}
-          <div className="my-8 bg-neutral-50 p-6 rounded-2xl border border-neutral-200 text-xs space-y-4">
-            <div className="flex justify-between items-center pb-3 border-b border-neutral-200">
-              <div>
-                <span className="font-bold text-neutral-900 text-sm block">Official Tax Receipt</span>
-                <span className="text-neutral-500">{receiptData.receiptNumber}</span>
-              </div>
-              <span className="bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full uppercase text-[10px]">
-                Paid & Verified
-              </span>
-            </div>
+          <div className="my-8"><ReceiptPrint receipt={receiptData} /></div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-neutral-400 block font-medium">Guest Name</span>
-                <span className="font-bold text-neutral-800">{receiptData.customer.name}</span>
-              </div>
-              <div>
-                <span className="text-neutral-400 block font-medium">Payment Method</span>
-                <span className="font-bold text-neutral-800 uppercase">
-                  {receiptData.billing.paymentMethod} {isPaypalReceipt ? '(USD)' : '(KES)'}
-                </span>
-              </div>
-              <div>
-                <span className="text-neutral-400 block font-medium">Stay Dates</span>
-                <span className="font-bold text-neutral-800">
-                  {receiptData.stay.checkInDate} to {receiptData.stay.checkOutDate}
-                </span>
-              </div>
-              <div>
-                <span className="text-neutral-400 block font-medium">Transaction Ref</span>
-                <span className="font-mono text-neutral-800 font-semibold">{receiptData.billing.transactionRef}</span>
-              </div>
-            </div>
-
-            <div className="border-t border-neutral-200 pt-3 space-y-1.5">
-              <div className="flex justify-between">
-                <span>Subtotal (Net):</span>
-                <span className="font-semibold">{formatKES(receiptData.billing.subtotal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>VAT ({receiptData.billing.taxRate}):</span>
-                <span className="font-semibold">{formatKES(receiptData.billing.taxAmount)}</span>
-              </div>
-
-              {isPaypalReceipt ? (
-                <div className="flex justify-between pt-2 border-t border-neutral-200 font-bold text-sm text-neutral-900">
-                  <span>Amount Paid via PayPal:</span>
-                  <span className="text-sky-600 font-mono">
-                    {formatUSD(receiptData.billing.amountPaid)} ({formatKES(receiptData.billing.amountPaid)})
-                  </span>
-                </div>
-              ) : (
-                <div className="flex justify-between pt-2 border-t border-neutral-200 font-bold text-sm text-neutral-900">
-                  <span>Amount Paid Today:</span>
-                  <span className="text-amber-600 font-mono">{formatKES(receiptData.billing.amountPaid)}</span>
-                </div>
-              )}
-
-              {receiptData.billing.balanceRemaining > 0 && (
-                <div className="flex justify-between text-rose-600 font-bold pt-1">
-                  <span>Balance Due at Check-In:</span>
-                  <span>{formatKES(receiptData.billing.balanceRemaining)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <div className="no-print flex flex-col sm:flex-row gap-3 pt-2">
             <button
               onClick={() => window.print()}
               className="flex-1 bg-neutral-800 hover:bg-neutral-900 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 text-sm shadow-sm transition"
@@ -366,7 +307,7 @@ export default function Payment() {
                       <input
                         type="tel"
                         required
-                        placeholder="0712345678"
+                        placeholder="M-Pesa phone number"
                         value={mpesaPhone}
                         onChange={(e) => setMpesaPhone(e.target.value)}
                         className="w-full px-4 py-3 bg-neutral-50 border border-neutral-300 rounded-xl text-sm font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -402,7 +343,7 @@ export default function Payment() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. David Kamau"
+                      placeholder="Cardholder full name"
                       value={cardHolder}
                       onChange={(e) => setCardHolder(e.target.value)}
                       className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -415,7 +356,7 @@ export default function Payment() {
                       type="text"
                       required
                       maxLength="19"
-                      placeholder="4000 1234 5678 9010"
+                      placeholder="Card number"
                       value={cardNumber}
                       onChange={(e) => setCardNumber(e.target.value)}
                       className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-sm font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -428,7 +369,7 @@ export default function Payment() {
                       <input
                         type="text"
                         required
-                        placeholder="MM/YY"
+                      placeholder="Expiry date"
                         maxLength="5"
                         value={cardExpiry}
                         onChange={(e) => setCardExpiry(e.target.value)}
@@ -441,7 +382,7 @@ export default function Payment() {
                         type="password"
                         required
                         maxLength="4"
-                        placeholder="123"
+                      placeholder="Security code"
                         value={cardCvv}
                         onChange={(e) => setCardCvv(e.target.value)}
                         className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-300 rounded-lg text-sm font-mono text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -519,11 +460,11 @@ export default function Payment() {
                 </div>
                 <div className="flex justify-between">
                   <span>Check-In:</span>
-                  <span className="font-semibold text-neutral-800">{booking?.checkInDate || '2026-09-05'}</span>
+                  <span className="font-semibold text-neutral-800">{booking?.checkInDate || '—'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Check-Out:</span>
-                  <span className="font-semibold text-neutral-800">{booking?.checkOutDate || '2026-09-08'}</span>
+                  <span className="font-semibold text-neutral-800">{booking?.checkOutDate || '—'}</span>
                 </div>
               </div>
 

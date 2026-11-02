@@ -5,8 +5,8 @@ services:
     environment:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-rms_database}
       MYSQL_USER: ${MYSQL_USER:-rms}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rms_change_me}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_change_me}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in the Compose environment file}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in the Compose environment file}
     volumes:
       - rms_mysql_data:/var/lib/mysql
     healthcheck:
@@ -29,16 +29,25 @@ services:
       DB_NAME: ${MYSQL_DATABASE:-rms_database}
       DB_USER: ${MYSQL_USER:-rms}
       DB_PASSWORD: ${MYSQL_PASSWORD:-rms_change_me}
-      JWT_SECRET: ${JWT_SECRET:-replace_this_access_secret}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-replace_this_refresh_secret}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in the Compose environment file}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in the Compose environment file}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
       DEFAULT_CURRENCY: KES
       USD_TO_KES_RATE: ${USD_TO_KES_RATE:-130}
       TAX_RATE: ${TAX_RATE:-0.16}
-      BUSINESS_NAME: ${BUSINESS_NAME:-RMS House Rental Management}
-      BUSINESS_EMAIL: ${BUSINESS_EMAIL:-support@rms-rentals.com}
-      BUSINESS_PHONE: ${BUSINESS_PHONE:-+254 700 000000}
+      BUSINESS_NAME: ${BUSINESS_NAME:-CozyStay}
+      BUSINESS_EMAIL: ${BUSINESS_EMAIL:-}
+      BUSINESS_PHONE: ${BUSINESS_PHONE:-}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      INITIAL_ADMIN_FIRST_NAME: ${INITIAL_ADMIN_FIRST_NAME:-}
+      INITIAL_ADMIN_LAST_NAME: ${INITIAL_ADMIN_LAST_NAME:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
     depends_on:
       mysql:

@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { FaHome, FaSignInAlt, FaCashRegister, FaUserShield } from 'react-icons/fa';
+import { FaHome, FaSignInAlt } from 'react-icons/fa';
 import { getBranding } from '../utils/branding';
-import { shouldUseOfflineFallback } from '../../utils/authFallback';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 export default function Login({ onLogin, sessionMessage = '' }) {
-  const branding = getBranding();
-  const [email, setEmail] = useState('cashier@rms.com');
-  const [password, setPassword] = useState('Cashier123!');
+  const [branding, setBranding] = useState(getBranding);
+  useEffect(() => {
+    const refreshBranding = (event) => setBranding(event.detail || getBranding());
+    window.addEventListener('rms:branding-changed', refreshBranding);
+    return () => window.removeEventListener('rms:branding-changed', refreshBranding);
+  }, []);
+  const [accountRole, setAccountRole] = useState('cashier');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(sessionMessage);
   const [loading, setLoading] = useState(false);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoveryRequested, setRecoveryRequested] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
 
   async function submit(event) {
     if (event) event.preventDefault();
@@ -30,8 +40,12 @@ export default function Login({ onLogin, sessionMessage = '' }) {
       }
 
       const role = data.user?.role;
-      if (role !== 'admin' && role !== 'cashier') {
-        throw new Error('Only administrator and cashier staff accounts can use this portal');
+      if (!['admin', 'cashier', 'property_owner'].includes(role)) {
+        throw new Error('This portal is available to administrators, cashiers, and property owners');
+      }
+      if (role !== accountRole) {
+        const roleLabels = { admin: 'an administrator', cashier: 'a cashier', property_owner: 'a property owner' };
+        throw new Error(`This account is registered as ${roleLabels[role]}. Choose the matching account type.`);
       }
 
       const authUser = data.user;
@@ -42,34 +56,55 @@ export default function Login({ onLogin, sessionMessage = '' }) {
       localStorage.setItem('rms_admin_user', JSON.stringify(authUser));
       onLogin(authUser);
     } catch (requestError) {
-      // Only use offline demo login when the backend is genuinely unreachable.
-      if (shouldUseOfflineFallback(requestError, email, password)) {
-        const fallbackUser = {
-          id: email === 'admin@rms.com' ? '11111111-1111-1111-1111-111111111111' : '22222222-2222-2222-2222-222222222222',
-          email,
-          firstName: email === 'admin@rms.com' ? 'System' : 'Alice',
-          lastName: email === 'admin@rms.com' ? 'Administrator' : 'Mwangi',
-          role: email === 'admin@rms.com' ? 'admin' : 'cashier',
-        };
-        const fallbackToken = 'local_offline_token_' + Date.now();
-        sessionStorage.setItem('rms_admin_token', fallbackToken);
-        sessionStorage.setItem('rms_admin_user', JSON.stringify(fallbackUser));
-        localStorage.setItem('rms_admin_token', fallbackToken);
-        localStorage.setItem('rms_admin_user', JSON.stringify(fallbackUser));
-        onLogin(fallbackUser);
-        return;
-      }
-
       setError(requestError.response?.data?.error || requestError.response?.data?.message || requestError.message || 'Unable to sign in');
     } finally {
       setLoading(false);
     }
   }
 
-  const handleQuickDemo = (demoEmail, demoPass) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-  };
+  async function requestRecoveryCode(event) {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+    setRecoveryLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/auth/staff/forgot-password`, { email: email.trim() });
+      setRecoveryRequested(true);
+      setNotice(response.data?.message || 'If an active staff account matches that email, a recovery code will be sent.');
+    } catch (requestError) {
+      setError(requestError.response?.status === 404
+        ? 'This backend has not loaded staff password recovery yet. Restart or redeploy the CozyStay API, then try again.'
+        : requestError.response?.data?.error || 'Unable to request a recovery code. Try again shortly.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  }
+
+  async function resetStaffPassword(event) {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+    setRecoveryLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/auth/staff/reset-password`, {
+        email: email.trim(),
+        code: recoveryCode.trim(),
+        newPassword,
+      });
+      setRecoveryMode(false);
+      setRecoveryRequested(false);
+      setRecoveryCode('');
+      setNewPassword('');
+      setPassword('');
+      setNotice(response.data?.message || 'Password reset. Sign in with your new password.');
+    } catch (requestError) {
+      setError(requestError.response?.status === 404
+        ? 'This backend has not loaded staff password recovery yet. Restart or redeploy the CozyStay API, then try again.'
+        : requestError.response?.data?.error || 'The code is invalid or expired. Request a new code and try again.');
+    } finally {
+      setRecoveryLoading(false);
+    }
+  }
 
   return (
     <div className="admin-login-page">
@@ -77,31 +112,110 @@ export default function Login({ onLogin, sessionMessage = '' }) {
         <div className="admin-login-header">
           {branding.logo ? <img className="login-logo" src={branding.logo} alt={`${branding.name} logo`} /> : <div className="login-logo-fallback"><FaHome /></div>}
           <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-600 block">
-            RMS DESKTOP CLIENT
+            COZYSTAY OWNER & STAFF PORTAL
           </span>
           <h1 className="login-brand-name">{branding.name}</h1>
-          <h2 className="login-portal-title">Admin & Cashier Portal</h2>
+          <h2 className="login-portal-title">Owner & Operations Portal</h2>
           <p className="text-xs text-neutral-500">
-            Sign in with your staff account to access front-desk POS terminal or admin management.
+            Sign in to manage your properties, reservations, guest services, or front-desk operations.
           </p>
         </div>
 
+        {recoveryMode ? (
+          <form onSubmit={recoveryRequested ? resetStaffPassword : requestRecoveryCode} className="admin-login-form">
+            <button type="button" onClick={() => { setRecoveryMode(false); setRecoveryRequested(false); setError(''); setNotice(''); }} className="w-full text-left text-sm font-semibold text-amber-700">
+              ← Back to staff sign in
+            </button>
+            <p className="text-sm text-neutral-600">
+              {recoveryRequested
+                ? 'Enter the six-digit code sent to your staff email and choose a new password.'
+                : 'We will email a one-time recovery code to your staff account.'}
+            </p>
+            {!recoveryRequested ? (
+              <div>
+                <label className="block font-bold text-neutral-700 mb-1" htmlFor="recovery-email">Staff Email Address</label>
+                <input
+                  id="recovery-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="name@business.com"
+                  className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl font-semibold text-neutral-800"
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block font-bold text-neutral-700 mb-1" htmlFor="recovery-code">Recovery code</label>
+                  <input
+                    id="recovery-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    required
+                    value={recoveryCode}
+                    onChange={(event) => setRecoveryCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="6-digit code"
+                    className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-neutral-800 tracking-widest"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-neutral-700 mb-1" htmlFor="recovery-new-password">New password</label>
+                  <input
+                    id="recovery-new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="Use upper and lower case, a number and a symbol"
+                    className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-neutral-800"
+                  />
+                </div>
+              </>
+            )}
+            {notice && !error && <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl">{notice}</div>}
+            {error && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl" role="alert">{error}</div>}
+            <button type="submit" disabled={recoveryLoading} className="w-full btn-amber py-3 rounded-xl font-extrabold">
+              {recoveryLoading ? 'Please wait…' : recoveryRequested ? 'Set New Password' : 'Email Recovery Code'}
+            </button>
+            {recoveryRequested && (
+              <button type="button" disabled={recoveryLoading} onClick={requestRecoveryCode} className="w-full text-sm font-semibold text-amber-700">
+                Send a new code
+              </button>
+            )}
+          </form>
+        ) : (
         <form onSubmit={submit} className="admin-login-form">
           <div>
-            <label className="block font-bold text-neutral-700 mb-1">Staff Email Address</label>
+            <label className="block font-bold text-neutral-700 mb-1" htmlFor="staff-role">Account type</label>
+            <select id="staff-role" value={accountRole} onChange={(event) => setAccountRole(event.target.value)}>
+              <option value="cashier">Cashier</option>
+              <option value="admin">Administrator</option>
+              <option value="property_owner">Property Owner</option>
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-neutral-700 mb-1" htmlFor="staff-email">Staff Email Address</label>
             <input
+              id="staff-email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="cashier@rms.com"
+              placeholder="name@business.com"
               className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
 
           <div>
-            <label className="block font-bold text-neutral-700 mb-1">Password</label>
+            <label className="block font-bold text-neutral-700 mb-1" htmlFor="staff-password">Password</label>
             <input
+              id="staff-password"
               type="password"
               required
               value={password}
@@ -131,30 +245,12 @@ export default function Login({ onLogin, sessionMessage = '' }) {
           >
             <FaSignInAlt /> {loading ? 'Signing In...' : 'Sign In to Portal'}
           </button>
+          <button type="button" onClick={() => { setRecoveryMode(true); setError(''); setNotice(''); }} className="w-full text-sm font-semibold text-amber-700">
+            Forgot password?
+          </button>
         </form>
+        )}
 
-        {/* Quick Demo Logins */}
-        <div className="admin-login-demo">
-          <span className="text-[10px] font-extrabold text-neutral-400 uppercase tracking-wider block text-center">
-            One-Click Demo Staff Logins
-          </span>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('cashier@rms.com', 'Cashier123!')}
-              className="p-2 border border-neutral-200 hover:border-amber-400 rounded-xl text-center text-xs font-bold text-neutral-700 hover:bg-amber-50/50 transition flex items-center justify-center gap-1.5"
-            >
-              <FaCashRegister className="text-amber-500" /> POS Cashier
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemo('admin@rms.com', 'Admin123!')}
-              className="p-2 border border-neutral-200 hover:border-sky-400 rounded-xl text-center text-xs font-bold text-neutral-700 hover:bg-sky-50/50 transition flex items-center justify-center gap-1.5"
-            >
-              <FaUserShield className="text-sky-500" /> System Admin
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

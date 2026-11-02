@@ -98,7 +98,7 @@
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
-.dashboard-kpi-card.revenue { border-top-color: #d97706; }
+.dashboard-kpi-card.revenue { border-top-color: var(--brand-600); }
 .dashboard-kpi-card.occupancy { border-top-color: #0284c7; }
 .dashboard-kpi-card.reservations { border-top-color: #059669; }
 .dashboard-kpi-card.adr { border-top-color: #4f46e5; }
@@ -127,7 +127,7 @@
   color: var(--sidebar-blue-700);
 }
 
-.revenue .dashboard-kpi-icon { background: #fffbeb; color: #d97706; }
+.revenue .dashboard-kpi-icon { background: var(--brand-50); color: var(--brand-700); }
 .occupancy .dashboard-kpi-icon { background: #f0f9ff; color: #0284c7; }
 .reservations .dashboard-kpi-icon { background: #ecfdf5; color: #059669; }
 .adr .dashboard-kpi-icon { background: #eef2ff; color: #4f46e5; }
@@ -227,8 +227,8 @@
 .analysis-total {
   padding: 6px 9px;
   border-radius: 7px;
-  background: #fffbeb;
-  color: #92400e;
+  background: var(--brand-50);
+  color: var(--brand-800);
   font-size: 0.7rem;
   font-weight: 800;
   white-space: nowrap;
@@ -260,7 +260,7 @@
   font-weight: 500;
 }
 
-.revenue-bar-fill[data-color="0"] { background: #d97706; }
+.revenue-bar-fill[data-color="0"] { background: var(--brand-600); }
 .revenue-bar-fill[data-color="1"] { background: #0284c7; }
 .revenue-bar-fill[data-color="2"] { background: #059669; }
 .revenue-bar-fill[data-color="3"] { background: #4f46e5; }
@@ -290,7 +290,7 @@
 }
 
 .dashboard-shortcut:hover { background: #eff6ff; border-color: #bfdbfe; }
-.dashboard-shortcut.primary { background: #fffbeb; border-color: #fde68a; color: #78350f; }
+.dashboard-shortcut.primary { background: var(--brand-50); border-color: var(--brand-300); color: var(--brand-800); }
 
 .dashboard-tip {
   margin-top: 20px;
@@ -305,8 +305,8 @@
 
 .reservations-panel { overflow: hidden; }
 .reservations-panel .admin-table { margin-top: 15px; }
-.dashboard-link { color: #b45309; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
-.dashboard-link:hover { color: #92400e; }
+.dashboard-link { color: var(--brand-700); font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
+.dashboard-link:hover { color: var(--brand-900); }
 
 @media (max-width: 900px) {
   .dashboard-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

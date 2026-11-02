@@ -1,4 +1,4 @@
-# RMS Product Differentiation
+# CozyStay Product Differentiation
 
 ## Market Scan
 
@@ -9,9 +9,9 @@ Representative products reviewed:
 - [Cloudbeds HMS](https://www.cloudbeds.com/hotel-management-software/): PMS, 300+ channel connections, booking engine, payments, revenue intelligence, CRM, guest experience, marketing, and open integrations.
 - [Airbnb terms and search guidance](https://www.airbnb.com/help/article/2908): search relevance is influenced by price, availability, images, reviews, service quality, cancellation history, booking ease, and guest preferences.
 
-These products establish the generic category baseline. RMS should not compete by copying every global OTA integration or requiring smart locks and other dedicated hardware.
+These products establish the generic category baseline. CozyStay should not compete by copying every global OTA integration or requiring smart locks and other dedicated hardware.
 
-## RMS Position
+## CozyStay Position
 
 **A local-first rental operating system for Kenya and East Africa.**
 

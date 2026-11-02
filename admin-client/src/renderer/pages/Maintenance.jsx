@@ -12,35 +12,22 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-const fallbackUnits = [
-  { id: 'prop-101', name: 'Sunlight Luxury 1-Bedroom Apartment', type: 'One Bedroom', status: 'clean', lastCleaned: '2026-09-08 09:30 AM', housekeeper: 'Mercy A.', notes: 'Fresh linens and toiletries stocked' },
-  { id: 'prop-102', name: 'Ocean Breeze Beachfront Airbnb Villa', type: 'Airbnb Villa', status: 'occupied', lastCleaned: '2026-09-07 02:00 PM', housekeeper: 'Brian O.', notes: 'Guest in residence until Sept 15' },
-  { id: 'prop-103', name: 'Cozy Urban Bedsitter Studio', type: 'Bedsitter', status: 'dirty', lastCleaned: '2026-09-06 11:00 AM', housekeeper: 'Mercy A.', notes: 'Guest departed this morning. Needs full turnover' },
-  { id: 'prop-104', name: 'Lakeview Executive Bed & Breakfast', type: 'BnB', status: 'clean', lastCleaned: '2026-09-08 08:00 AM', housekeeper: 'Grace K.', notes: 'Inspected and certified ready for check-in' },
-  { id: 'prop-105', name: 'Downtown Executive Single Room Suite', type: 'Single Room', status: 'maintenance', lastCleaned: '2026-09-05 04:00 PM', housekeeper: 'Technical Staff', notes: 'Air conditioning unit servicing in progress' },
-  { id: 'prop-106', name: 'Amber Heights 1-Bedroom Penthouse', type: 'One Bedroom', status: 'clean', lastCleaned: '2026-09-08 10:15 AM', housekeeper: 'Brian O.', notes: 'Jacuzzi sanitized & patio polished' },
-];
-
 export default function Maintenance() {
-  const [units, setUnits] = useState(fallbackUnits);
+  const [units, setUnits] = useState([]);
 
   useEffect(() => {
     axios.get(`${API_URL}/properties?limit=100`).then((response) => {
       const properties = response.data?.data?.data || response.data?.data || [];
-      if (properties.length > 0) {
-        setUnits(properties.map((property) => ({
+      setUnits(properties.map((property) => ({
           id: property.id,
           name: property.name,
           type: String(property.type || 'Rental Unit').replaceAll('_', ' '),
           status: property.housekeepingStatus || (property.status === 'maintenance' ? 'maintenance' : 'clean'),
           lastCleaned: property.updatedAt ? new Date(property.updatedAt).toLocaleString() : 'Not recorded',
-          housekeeper: 'Operations Team',
-          notes: property.description || 'No housekeeping notes recorded',
-        })));
-      }
-    }).catch(() => {
-      // Keep the local board available when the backend is offline.
-    });
+          housekeeper: property.housekeeperName || 'Not assigned',
+          notes: property.housekeepingNotes || 'No housekeeping notes recorded',
+      })));
+    }).catch(() => setUnits([]));
   }, []);
 
   const handleUpdateStatus = (id, newStatus) => {
@@ -75,6 +62,7 @@ export default function Maintenance() {
       </div>
 
       <div className="maintenance-grid">
+        {units.length === 0 && <p className="maintenance-empty">No property readiness data is available. Check the backend connection or add properties.</p>}
         {units.map((unit) => (
           <div
             key={unit.id}
@@ -102,8 +90,8 @@ export default function Maintenance() {
 
             <div className="maintenance-card-footer">
               <div className="maintenance-meta">
-                <span>Housekeeper: <strong>{unit.housekeeper}</strong></span>
-                <span>{unit.lastCleaned}</span>
+                <span>Assigned to: <strong>{unit.housekeeper}</strong></span>
+                <span>Last property update: {unit.lastCleaned}</span>
               </div>
 
               {/* Status Action Buttons */}

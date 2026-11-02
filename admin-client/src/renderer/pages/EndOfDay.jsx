@@ -22,34 +22,35 @@ export default function EndOfDay() {
   }, [date]);
 
   return (
-    <div className="space-y-6">
-      <div className="admin-card flex flex-wrap items-center justify-between gap-4">
+    <div className="end-of-day-page">
+      <div className="admin-card end-of-day-header">
         <div>
-          <h2 className="text-xl font-extrabold text-neutral-900 flex items-center gap-2"><FaSun className="text-amber-500" /> End-of-Day Summary</h2>
-          <p className="text-xs text-neutral-500 mt-1">Review daily collections, payment channels, transactions, and cashier shifts.</p>
+          <h2><FaSun /> End-of-Day Summary</h2>
+          <p>Review daily collections, payment channels, transactions, and cashier shifts.</p>
         </div>
-        <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="p-2 border border-neutral-300 rounded-lg text-xs font-bold" />
+        <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
       </div>
 
-      {loading ? <div className="admin-card text-sm text-neutral-500">Loading daily summary...</div> : summary ? (
+      {loading ? <div className="admin-card end-of-day-message">Loading daily summary...</div> : summary ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="admin-card"><span className="text-xs text-neutral-500 font-bold uppercase">Total Collected</span><strong className="block mt-2 text-2xl text-amber-700">KES {Number(summary.totalRevenue || 0).toLocaleString()}</strong></div>
-            <div className="admin-card"><span className="text-xs text-neutral-500 font-bold uppercase">Transactions</span><strong className="block mt-2 text-2xl text-neutral-900">{summary.transactionCount || 0}</strong></div>
-            <div className="admin-card"><span className="text-xs text-neutral-500 font-bold uppercase">Cashier Shifts</span><strong className="block mt-2 text-2xl text-sky-700">{summary.shifts?.length || 0}</strong></div>
+          <div className="end-of-day-kpis">
+            <div className="admin-card end-of-day-kpi"><span>Total Collected</span><strong>KES {Number(summary.totalRevenue || 0).toLocaleString()}</strong></div>
+            <div className="admin-card end-of-day-kpi"><span>Transactions</span><strong>{summary.transactionCount || 0}</strong></div>
+            <div className="admin-card end-of-day-kpi"><span>Cashier Shifts</span><strong>{summary.shifts?.length || 0}</strong></div>
           </div>
-          <div className="admin-card">
-            <h3 className="font-extrabold text-sm text-neutral-900 flex items-center gap-2"><FaMoneyBillWave className="text-amber-500" /> Collections by Method</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
-              {Object.entries(summary.byMethod || {}).map(([method, amount]) => <div key={method} className="p-4 rounded-xl bg-neutral-50 border border-neutral-200"><span className="text-xs font-bold uppercase text-neutral-500">{method}</span><strong className="block mt-1 text-lg text-neutral-900">KES {Number(amount).toLocaleString()}</strong></div>)}
+          <div className="admin-card end-of-day-section">
+            <h3><FaMoneyBillWave /> Collections by Method</h3>
+            <div className="end-of-day-methods">
+              {Object.entries(summary.byMethod || {}).map(([method, amount]) => <div key={method}><span>{method.replaceAll('_', ' ')}</span><strong>KES {Number(amount).toLocaleString()}</strong></div>)}
+              {Object.keys(summary.byMethod || {}).length === 0 && <p>No payment collections recorded for this date.</p>}
             </div>
           </div>
-          <div className="admin-card overflow-x-auto">
-            <h3 className="font-extrabold text-sm text-neutral-900 flex items-center gap-2 mb-4"><FaReceipt className="text-amber-500" /> Shifts for {date}</h3>
-            <table className="admin-table"><thead><tr><th>Cashier</th><th>Opened</th><th>Closed</th><th>Opening Float</th><th>Status</th></tr></thead><tbody>{(summary.shifts || []).map((shift) => <tr key={shift.id}><td className="font-bold">{shift.cashierName}</td><td>{new Date(shift.open_time).toLocaleTimeString()}</td><td>{shift.close_time ? new Date(shift.close_time).toLocaleTimeString() : 'Open'}</td><td>KES {Number(shift.opening_balance || 0).toLocaleString()}</td><td className="uppercase font-bold">{shift.status}</td></tr>)}</tbody></table>
+          <div className="admin-card end-of-day-section end-of-day-table-card">
+            <h3><FaReceipt /> Shifts for {date}</h3>
+            <div className="end-of-day-table-wrap"><table className="admin-table"><thead><tr><th>Cashier</th><th>Opened</th><th>Closed</th><th>Opening Float</th><th>Status</th></tr></thead><tbody>{(summary.shifts || []).map((shift) => <tr key={shift.id}><td className="font-bold">{shift.cashierName}</td><td>{new Date(shift.open_time).toLocaleTimeString()}</td><td>{shift.close_time ? new Date(shift.close_time).toLocaleTimeString() : 'Open'}</td><td>KES {Number(shift.opening_balance || 0).toLocaleString()}</td><td className="uppercase font-bold">{shift.status}</td></tr>)}{(summary.shifts || []).length === 0 && <tr><td colSpan="5" className="end-of-day-empty">No cashier shifts recorded for this date.</td></tr>}</tbody></table></div>
           </div>
         </>
-      ) : <div className="admin-card text-sm text-rose-700">The daily summary is unavailable: {error || 'Check the backend connection.'}</div>}
+      ) : <div className="admin-card end-of-day-message end-of-day-error">The daily summary is unavailable: {error || 'Check the backend connection.'}</div>}
     </div>
   );
 }

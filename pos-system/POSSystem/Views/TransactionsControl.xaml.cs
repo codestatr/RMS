@@ -43,9 +43,9 @@ namespace RMS.POSSystem.Views
         {
             if (sender is Button btn && btn.DataContext is POSTransaction tx)
             {
-                var receiptText = ReceiptService.GenerateReceiptText(tx, null, AuthService.CurrentUser?.FullName ?? "Cashier");
-                var receiptPath = ReceiptService.SaveReceiptText(tx, receiptText);
-                MessageBox.Show($"{receiptText}\n\nReceipt saved to:\n{receiptPath}", "Receipt Reprint", MessageBoxButton.OK, MessageBoxImage.Information);
+                var printed = ReceiptService.PrintReceipt(tx, null, AuthService.CurrentUser?.FullName ?? "Cashier");
+                if (printed)
+                    MessageBox.Show("Receipt sent to the selected printer. Choose Microsoft Print to PDF in the printer list to save a PDF.", "Receipt Reprint", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
     }

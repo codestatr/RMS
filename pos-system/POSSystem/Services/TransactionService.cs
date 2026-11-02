@@ -19,18 +19,6 @@ namespace RMS.POSSystem.Services
             var list = new List<Property>();
             var rows = _db.ExecuteQuery("SELECT * FROM Properties WHERE Status = 'available' ORDER BY Name ASC");
 
-            if (rows.Count == 0)
-            {
-                // Fallback demo properties with realistic Kenyan Shilling (KES) rates
-                list.Add(new Property { Id = "prop-101", Name = "Sunlight Luxury 1-Bedroom Apartment", Type = "one_bedroom", Address = "Woodvale Grove, Westlands", PricePerNight = 5500.0m, Capacity = 2, Status = "available" });
-                list.Add(new Property { Id = "prop-102", Name = "Ocean Breeze Beachfront Airbnb Villa", Type = "airbnb", Address = "Diani Beach Road", PricePerNight = 18000.0m, Capacity = 6, Status = "available" });
-                list.Add(new Property { Id = "prop-103", Name = "Cozy Urban Bedsitter Studio", Type = "bedsitter", Address = "Ngong Road, Kilimani", PricePerNight = 2500.0m, Capacity = 1, Status = "available" });
-                list.Add(new Property { Id = "prop-104", Name = "Lakeview Executive Bed & Breakfast", Type = "bnb", Address = "Riat Hills, Kisumu", PricePerNight = 6500.0m, Capacity = 3, Status = "available" });
-                list.Add(new Property { Id = "prop-105", Name = "Downtown Executive Single Room Suite", Type = "single_room", Address = "Kenyatta Avenue, CBD", PricePerNight = 3500.0m, Capacity = 1, Status = "available" });
-                list.Add(new Property { Id = "prop-106", Name = "Amber Heights 1-Bedroom Penthouse", Type = "one_bedroom", Address = "Riverside Drive", PricePerNight = 9500.0m, Capacity = 2, Status = "available" });
-                return list;
-            }
-
             foreach (var r in rows)
             {
                 list.Add(new Property
@@ -40,7 +28,7 @@ namespace RMS.POSSystem.Services
                     Type = r["Type"]?.ToString(),
                     Description = r["Description"]?.ToString(),
                     Address = r["Address"]?.ToString(),
-                    PricePerNight = r["PricePerNight"] != null ? Convert.ToDecimal(r["PricePerNight"]) : 5500.0m,
+                    PricePerNight = r["PricePerNight"] != null ? Convert.ToDecimal(r["PricePerNight"]) : 0m,
                     Capacity = r["Capacity"] != null ? Convert.ToInt32(r["Capacity"]) : 1,
                     Status = r["Status"]?.ToString() ?? "available",
                 });
@@ -73,11 +61,9 @@ namespace RMS.POSSystem.Services
 
             // Fetch property to get nightly rate
             var props = _db.ExecuteQuery("SELECT PricePerNight FROM Properties WHERE Id = @id", new Dictionary<string, object> { { "id", propertyId } });
-            decimal rate = 5500.0m;
-            if (props.Count > 0 && props[0]["PricePerNight"] != null)
-            {
-                rate = Convert.ToDecimal(props[0]["PricePerNight"]);
-            }
+            if (props.Count == 0 || props[0]["PricePerNight"] == null)
+                throw new InvalidOperationException("The selected property could not be found or has no nightly rate.");
+            decimal rate = Convert.ToDecimal(props[0]["PricePerNight"]);
 
             var subtotal = rate * nights;
             var tax = subtotal * 0.16m; // 16% VAT

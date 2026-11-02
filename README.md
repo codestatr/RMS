@@ -1,6 +1,6 @@
-# RMS House Rental & Booking Management System
+# CozyStay House Rental & Booking Management System
 
-This repository contains the full-stack RMS platform for managing rental listings, bookings, payments, admin operations, and POS workflows.
+This repository contains the full-stack CozyStay platform for managing rental listings, bookings, payments, admin operations, and POS workflows.
 
 ## Overview
 
@@ -24,9 +24,9 @@ Location: [frontend](frontend)
 ### 3. Admin Desktop Client
 Location: [admin-client](admin-client)
 - Electron + React + Vite desktop app
-- SQLite local database for offline-first admin work
+- SQLite local database with sync support
 - Property and booking management experience
-- Sync-ready architecture for offline/online operation
+- Includes sync code for offline/online operation
 
 ### 4. Shared Package
 Location: [shared](shared)
@@ -90,12 +90,11 @@ RMS/
 │   ├── public/
 │   └── src/
 ├── pos-system/
-│   └── POSSystem/
+│   └── POSSystem/                # WPF project (.csproj; no solution file)
 ├── shared/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
-└──
 ```
 
 ---
@@ -110,24 +109,24 @@ RMS/
 
 ---
 
-## Root Scripts
+## Workspace Scripts
 
 The workspace root exposes shared commands via [package.json](package.json):
 
 ```bash
 npm install
-npm run dev
 npm run build
-npm run test
-
 npm run backend:dev
 npm run frontend:dev
 npm run admin:dev
+npm run test --workspace=@rms/backend
+npm run test --workspace=@rms/frontend
 ```
 
 Notes:
-- `npm run dev` runs the workspaces in development mode.
-- `npm run build` runs workspace builds.
+- The root does not define a reliable all-workspace `dev` or `test` command. Run the app-specific scripts above.
+- `npm run build` runs each workspace's build script, including the shared TypeScript package.
+- `npm run admin:dev` starts the admin Vite renderer. The `electron` script launches Electron after building with `npm run admin:build`.
 - `npm run stop` and `npm run stop:ports` help shut down dev processes.
 
 ---
@@ -169,13 +168,23 @@ The example values are configured for common local development defaults:
 - frontend calls the backend at `http://localhost:3000/api`
 - admin client also targets the backend at `http://localhost:3000/api`
 
+### M-Pesa sandbox on localhost
+
+The website can initiate M-Pesa payments against Safaricom's sandbox by setting `MPESA_ENVIRONMENT=sandbox` in `backend/.env` and filling in the Daraja sandbox credentials. Safaricom must be able to reach the callback, so `MPESA_CALLBACK_URL` needs a public HTTPS tunnel pointing to `http://localhost:3000/api/payments/webhook/mpesa`; a plain `localhost` callback will not work. Keep production credentials out of local development.
+
 ### 4. Set up the database
 
-Use MySQL and import the schema:
+Create the database from a terminal, then import the schema:
 
 ```bash
 mysql -u root -p
+```
+
+At the MySQL prompt, run:
+
+```sql
 CREATE DATABASE rms_database CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+EXIT;
 ```
 
 Then import:
@@ -205,12 +214,15 @@ Admin client:
 
 ```bash
 cd admin-client
-npm run dev
+npm run build
+npm run electron
 ```
+
+`npm run dev` starts only the Vite renderer server; Electron loads the built app.
 
 POS system:
 
-Open the solution in Visual Studio and build/run the project in [pos-system/POSSystem](pos-system/POSSystem).
+Open [POSSystem.csproj](pos-system/POSSystem/POSSystem.csproj) in Visual Studio, or run `dotnet restore` and `dotnet run` from `pos-system/POSSystem`. This repository contains a project file, not a `.sln` solution file.
 
 ---
 
@@ -251,6 +263,7 @@ More deployment details are in [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMEN
 - Reporting and monitoring
 - Payment visibility
 - Staff/admin operations
+- Admins can choose the system accent color in Settings; the website and POS load the shared color from the backend.
 
 ### POS side
 - Walk-in booking support
@@ -266,13 +279,14 @@ More deployment details are in [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMEN
 - [docs/DATABASE.md](docs/DATABASE.md)
 - [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)
 - [docs/PRODUCT_DIFFERENTIATION.md](docs/PRODUCT_DIFFERENTIATION.md)
+- [docs/COZYSTAY_DESIGN_SYSTEM.md](docs/COZYSTAY_DESIGN_SYSTEM.md)
 
 ---
 
 ## Notes
 
 - The backend is the main service layer for the system.
-- The admin desktop client is designed to work with local SQLite while still syncing with upstream app data when available.
+- The admin and POS clients include local SQLite storage and sync code. Verify sync behavior and conflict handling before relying on offline changes in production.
 - The root project uses npm workspaces; individual apps can also be run independently.
 
 ---

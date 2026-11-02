@@ -28,7 +28,7 @@
                     <DataGridTemplateColumn Header="Action" Width="*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Button Content="Reprint Receipt" Background="#F59E0B" Foreground="White" FontWeight="SemiBold" FontSize="10" Padding="8,2" BorderThickness="0" Click="BtnReprint_Click"/>
+                                <Button Content="Reprint Receipt" Background="{DynamicResource AmberBrush}" Foreground="White" FontWeight="SemiBold" FontSize="10" Padding="8,2" BorderThickness="0" Click="BtnReprint_Click"/>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

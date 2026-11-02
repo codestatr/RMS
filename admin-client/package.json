@@ -8,12 +8,12 @@
   "homepage": "./",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:electron": "vite build",
+    "build": "vite build && node scripts/copy-electron.mjs",
+    "build:electron": "npm run build",
     "preview": "vite preview",
-    "electron": "electron .",
-    "electron-dev": "vite && electron .",
-    "package": "electron-builder",
+    "electron": "npm run build && electron .",
+    "electron-dev": "npm run build && electron .",
+    "package": "npm run build && electron-builder",
     "lint": "eslint src --ext js,jsx"
   },
   "dependencies": {

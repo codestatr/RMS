@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
   FaMapMarkerAlt,
   FaStar,
@@ -20,7 +20,7 @@ import { useWishlistStore } from '../store/wishlistStore';
 import { useBookingStore } from '../store/bookingStore';
 import { useAuthStore } from '../store/authStore';
 import { formatKES } from '../utils/currency';
-import { savePendingBooking } from '../utils/pendingBooking';
+import { consumePendingBooking, getPendingBooking, savePendingBooking } from '../utils/pendingBooking';
 import toast from 'react-hot-toast';
 
 export default function PropertyDetail() {
@@ -28,7 +28,7 @@ export default function PropertyDetail() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
   const { isSaved, toggleWishlist } = useWishlistStore();
-  const { setDraftBooking } = useBookingStore();
+  const { setDraftBooking, clearDraft } = useBookingStore();
 
   const [property, setProperty] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -79,13 +79,21 @@ export default function PropertyDetail() {
         setCheckInDate(tomorrow.toISOString().split('T')[0]);
         setCheckOutDate(next3Days.toISOString().split('T')[0]);
       } catch (err) {
-        toast.error('Failed to load property details');
+        if (err.response?.status === 404 && err.config?.url?.includes('/properties/')) {
+          const pending = getPendingBooking();
+          if (pending?.propertyId === id || pending?.property?.id === id) consumePendingBooking();
+          clearDraft();
+          setProperty(null);
+          setReviews([]);
+        } else {
+          toast.error('Failed to load property details');
+        }
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, [id]);
+  }, [id, clearDraft]);
 
   // Live Availability Check
   useEffect(() => {
@@ -118,22 +126,27 @@ export default function PropertyDetail() {
   if (!property) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
-        <p className="font-bold text-neutral-600">Property not found.</p>
+        <div className="text-center">
+          <p className="font-bold text-neutral-600">This property is no longer available.</p>
+          <Link to="/browse" className="inline-block mt-4 text-emerald-700 font-semibold">Browse current listings</Link>
+        </div>
       </div>
     );
   }
 
-  const images =
-    property.images && property.images.length > 0
-      ? property.images
-      : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'];
+  const images = Array.isArray(property.images)
+    ? property.images.filter((image) => typeof image === 'string' && image.trim())
+    : [];
+  const amenities = Array.isArray(property.amenities) ? property.amenities : [];
+  const guestCapacity = Math.max(1, Number(property.capacity) || 1);
 
   const nights =
     checkInDate && checkOutDate
       ? Math.max(1, Math.round((new Date(checkOutDate) - new Date(checkInDate)) / (1000 * 60 * 60 * 24)))
       : 1;
 
-  const basePrice = (property.pricePerNight || 5500) * nights;
+  const pricePerNight = Number(property.pricePerNight ?? property.price_per_night ?? 0);
+  const basePrice = pricePerNight * nights;
   const vatTax = Math.round(basePrice * 0.16);
   const totalPrice = basePrice + vatTax;
 
@@ -143,7 +156,7 @@ export default function PropertyDetail() {
     .sort()
     .at(-1);
 
-  const canAttemptReservation = Boolean(property && checkInDate && checkOutDate && !isCheckingAvailability);
+  const canAttemptReservation = Boolean(property && pricePerNight > 0 && checkInDate && checkOutDate && !isCheckingAvailability);
 
   const suggestedCheckIn = latestConflictCheckout
     ? latestConflictCheckout.slice(0, 10)
@@ -208,9 +221,9 @@ export default function PropertyDetail() {
 
   return (
     <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-x-8 lg:gap-y-6 lg:items-start">
         {/* Title & Location Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="lg:col-span-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 px-3 py-1 rounded-full">
               {property.type?.replace('_', ' ')}
@@ -219,7 +232,7 @@ export default function PropertyDetail() {
               {property.name}
             </h1>
             <p className="text-xs text-neutral-500 flex items-center gap-1.5 mt-1 font-medium">
-              <FaMapMarkerAlt className="text-amber-500" /> {property.address}, {property.city}, {property.country || 'Kenya'}
+              <FaMapMarkerAlt className="text-amber-500" /> {[property.address, property.city, property.country].filter(Boolean).join(', ') || 'Location not provided'}
             </p>
           </div>
 
@@ -240,51 +253,47 @@ export default function PropertyDetail() {
         </div>
 
         {/* Dynamic Image Gallery */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="md:col-span-3 h-96 sm:h-[450px] rounded-3xl overflow-hidden shadow-md">
-            <img
-              src={images[selectedImageIndex]}
-              alt={property.name}
-              className="w-full h-full object-cover"
-            />
+        <div className="lg:col-span-2 lg:col-start-1 lg:row-start-2 grid grid-cols-1 md:grid-cols-[minmax(0,320px)_1fr] gap-4 items-start">
+          <div className="w-full max-w-[320px] aspect-square rounded-3xl overflow-hidden shadow-md bg-neutral-100">
+            {images.length ? <img src={images[selectedImageIndex] || images[0]} alt={property.name} className="w-full h-full object-cover" /> : <div className="h-full flex items-center justify-center text-sm text-neutral-500">No property images have been added.</div>}
           </div>
 
-          <div className="md:col-span-1 flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[450px]">
+          {images.length > 1 && <div className="flex md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-64">
             {images.map((img, idx) => (
               <button
                 key={idx}
                 onClick={() => setSelectedImageIndex(idx)}
-                className={`relative flex-shrink-0 w-24 h-24 md:w-full md:h-28 rounded-2xl overflow-hidden border-2 transition ${
+                className={`relative flex-shrink-0 w-20 h-20 rounded-2xl overflow-hidden border-2 transition ${
                   selectedImageIndex === idx ? 'border-amber-500 shadow-md' : 'border-transparent opacity-75 hover:opacity-100'
                 }`}
               >
                 <img src={img} alt={`thumbnail-${idx}`} className="w-full h-full object-cover" />
               </button>
             ))}
-          </div>
+          </div>}
         </div>
 
         {/* Main Content: Details + Sticky Reservation Box */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:contents gap-8">
           {/* Left 2 Columns: Description, Amenities, Map, Reviews */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 lg:row-start-3 space-y-8">
             {/* Highlights */}
             <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-4">
               <h2 className="text-lg font-extrabold text-neutral-900">About this Accommodation</h2>
-              <p className="text-xs text-neutral-600 leading-relaxed">{property.description}</p>
+              <p className="text-xs text-neutral-600 leading-relaxed">{property.description || 'The host has not added a description.'}</p>
 
               <div className="grid grid-cols-3 gap-4 pt-4 border-t border-neutral-100 text-center">
                 <div className="p-3 bg-neutral-50 rounded-2xl">
                   <span className="text-[10px] text-neutral-400 font-bold uppercase block">Capacity</span>
-                  <span className="text-sm font-extrabold text-neutral-800">{property.capacity || 2} Guests</span>
+                  <span className="text-sm font-extrabold text-neutral-800">{property.capacity ? `${property.capacity} Guests` : 'Not provided'}</span>
                 </div>
                 <div className="p-3 bg-neutral-50 rounded-2xl">
                   <span className="text-[10px] text-neutral-400 font-bold uppercase block">Bedrooms</span>
-                  <span className="text-sm font-extrabold text-neutral-800">{property.bedrooms || 1} Room(s)</span>
+                  <span className="text-sm font-extrabold text-neutral-800">{property.bedrooms ?? 'Not provided'}</span>
                 </div>
                 <div className="p-3 bg-neutral-50 rounded-2xl">
                   <span className="text-[10px] text-neutral-400 font-bold uppercase block">Bathrooms</span>
-                  <span className="text-sm font-extrabold text-neutral-800">{property.bathrooms || 1} Bath(s)</span>
+                  <span className="text-sm font-extrabold text-neutral-800">{property.bathrooms ?? 'Not provided'}</span>
                 </div>
               </div>
             </div>
@@ -293,10 +302,7 @@ export default function PropertyDetail() {
             <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-4">
               <h2 className="text-lg font-extrabold text-neutral-900">What this Place Offers</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {(property.amenities && property.amenities.length > 0
-                  ? property.amenities
-                  : ['High-Speed Wi-Fi', 'Air Conditioning', 'Dedicated Workspace', 'Free Parking', 'Kitchen', '24/7 Security']
-                ).map((amenity, idx) => (
+                {amenities.map((amenity, idx) => (
                   <div
                     key={idx}
                     className="flex items-center gap-2 p-2.5 bg-neutral-50 rounded-xl text-xs font-semibold text-neutral-700"
@@ -305,6 +311,7 @@ export default function PropertyDetail() {
                     <span>{typeof amenity === 'string' ? amenity : amenity.name}</span>
                   </div>
                 ))}
+                {amenities.length === 0 && <p className="text-xs text-neutral-500">No amenities have been listed by the host.</p>}
               </div>
             </div>
 
@@ -342,7 +349,7 @@ export default function PropertyDetail() {
                 <div>
                   <h2 className="text-lg font-extrabold text-neutral-900">Verified Guest Reviews & Ratings</h2>
                   <p className="text-xs text-neutral-500">
-                    {reviews.length} verified ratings ({property.rating || '5.0'} / 5.0)
+                    {reviews.length} verified reviews{property.rating ? ` · ${property.rating} / 5` : ''}
                   </p>
                 </div>
 
@@ -389,15 +396,15 @@ export default function PropertyDetail() {
           </div>
 
           {/* Right Column: Sticky Booking Widget (in KES) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-3xl shadow-xl border border-neutral-200 p-6 sticky top-24 space-y-6">
+          <div className="lg:col-span-1 lg:col-start-3 lg:row-start-2">
+            <div className="bg-white rounded-3xl shadow-xl border border-neutral-200 p-4 sticky top-24 space-y-3">
               <div className="flex justify-between items-end pb-4 border-b border-neutral-100">
                 <div>
                   <span className="text-2xl font-black text-neutral-900">{formatKES(property.pricePerNight)}</span>
                   <span className="text-xs text-neutral-400 font-semibold"> / night</span>
                 </div>
                 <div className="flex items-center gap-1 text-amber-600 font-bold text-xs">
-                  <FaStar /> {property.rating || '5.0'}
+                  {property.rating ? <><FaStar /> {property.rating}</> : <span className="text-neutral-500">No reviews yet</span>}
                 </div>
               </div>
 
@@ -438,7 +445,7 @@ export default function PropertyDetail() {
                     onChange={(e) => setGuestCount(Number(e.target.value))}
                     className="w-full bg-transparent text-xs font-bold text-neutral-800 focus:outline-none"
                   >
-                    {[...Array(property.capacity || 2)].map((_, i) => (
+                    {[...Array(guestCapacity)].map((_, i) => (
                       <option key={i + 1} value={i + 1}>
                         {i + 1} Guest{i > 0 ? 's' : ''}
                       </option>
@@ -581,7 +588,7 @@ export default function PropertyDetail() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Peaceful stay, loved the balcony!"
+                  placeholder="Review title"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl"
@@ -593,7 +600,7 @@ export default function PropertyDetail() {
                 <textarea
                   required
                   rows="4"
-                  placeholder="Describe your stay, host communication, cleanliness, Wi-Fi speed..."
+                  placeholder="Write about your stay"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl"

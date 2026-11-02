@@ -1,8 +1,8 @@
 <Window x:Class="RMS.POSSystem.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="RMS Point of Sale Terminal" 
-        Height="700" Width="1100" 
+        Title="CozyStay Point of Sale Terminal"
+        Height="760" Width="1200" MinHeight="620" MinWidth="960"
         WindowStartupLocation="CenterScreen"
         Background="#F5F7F8" FontFamily="Segoe UI">
     <Grid>
@@ -22,12 +22,12 @@
 
                 <!-- Brand -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Background="#F59E0B" Width="36" Height="36" CornerRadius="8" Margin="0,0,10,0">
-                        <!-- ASSET NEEDED: official RMS logo. -->
+                    <Border Background="{DynamicResource AmberBrush}" Width="36" Height="36" CornerRadius="8" Margin="0,0,10,0">
+                        <!-- CozyStay brand icon. -->
                         <TextBlock Text="Logo pending" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="RMS POS Terminal" FontWeight="Bold" FontSize="15" Foreground="#111827"/>
+                        <TextBlock Text="CozyStay POS Terminal" FontWeight="Bold" FontSize="15" Foreground="#111827"/>
                         <TextBlock Text="Local SQLite Node (WAL Mode)" FontSize="10" Foreground="#6B7280"/>
                     </StackPanel>
                 </StackPanel>
@@ -55,7 +55,7 @@
         <!-- Main Body: Navigation Sidebar + Content Container -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="190" MinWidth="170"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -64,7 +64,7 @@
                 <StackPanel>
                     <TextBlock Text="POS TERMINAL MENU" FontSize="9" FontWeight="Bold" Foreground="#B9C4CC" Margin="8,8,8,10"/>
                     
-                    <Button x:Name="NavBooking" Content="Walk-In Booking" Height="38" Background="#F59E0B" Foreground="White" FontWeight="Bold" FontSize="12" BorderThickness="0" Margin="0,2" HorizontalContentAlignment="Left" Padding="10,0" Click="NavBooking_Click"/>
+                    <Button x:Name="NavBooking" Content="Walk-In Booking" Height="38" Background="{DynamicResource AmberBrush}" Foreground="White" FontWeight="Bold" FontSize="12" BorderThickness="0" Margin="0,2" HorizontalContentAlignment="Left" Padding="10,0" Click="NavBooking_Click"/>
                     <Button x:Name="NavShift" Content="Shift Management" Height="38" Background="#24313D" Foreground="#E6EDF1" FontWeight="SemiBold" FontSize="12" BorderThickness="0" Margin="0,2" HorizontalContentAlignment="Left" Padding="10,0" Click="NavShift_Click"/>
                     <Button x:Name="NavTransactions" Content="Transactions History" Height="38" Background="Transparent" Foreground="#E6EDF1" FontWeight="SemiBold" FontSize="12" BorderThickness="0" Margin="0,2" HorizontalContentAlignment="Left" Padding="10,0" Click="NavTransactions_Click"/>
                     
@@ -74,7 +74,7 @@
             </Border>
 
             <!-- Content Area -->
-            <Grid Grid.Column="1" x:Name="MainContentContainer" Margin="15">
+            <Grid Grid.Column="1" x:Name="MainContentContainer" Margin="24">
                 <!-- UserControls loaded dynamically -->
             </Grid>
         </Grid>

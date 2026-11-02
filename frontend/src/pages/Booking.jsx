@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   FaCheckCircle,
   FaShieldAlt,
-  FaTag,
   FaCalendarAlt,
   FaUserFriends,
   FaLock,
   FaArrowRight,
+  FaPlane,
 } from 'react-icons/fa';
 import { useBookingStore } from '../store/bookingStore';
 import { useAuthStore } from '../store/authStore';
@@ -43,10 +43,6 @@ export default function Booking() {
   const [pickupNotes, setPickupNotes] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  // Promo Code State
-  const [promoCode, setPromoCode] = useState('');
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [appliedPromo, setAppliedPromo] = useState('');
 
   // Payment Option: 100% full payment or 50% split deposit
   const [paymentOption, setPaymentOption] = useState('full'); // 'full' | 'deposit'
@@ -98,15 +94,18 @@ export default function Booking() {
     );
   }
 
-  const checkIn = activeDraft?.checkInDate || '2026-09-05';
-  const checkOut = activeDraft?.checkOutDate || '2026-09-08';
-  const guests = activeDraft?.numberOfGuests || 2;
-  const nights = activeDraft?.nights || 3;
-  const ratePerNight = property?.pricePerNight || 5500;
+  const checkIn = activeDraft?.checkInDate || '';
+  const checkOut = activeDraft?.checkOutDate || '';
+  const guests = Number(activeDraft?.numberOfGuests || 1);
+  const calculatedNights = checkIn && checkOut
+    ? Math.max(0, Math.round((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)))
+    : 0;
+  const nights = Number(activeDraft?.nights || calculatedNights);
+  const ratePerNight = Number(property?.pricePerNight ?? property?.price_per_night ?? 0);
 
   const rawSubtotal = ratePerNight * nights;
-  const discountAmount = Math.round((rawSubtotal * discountPercent) / 100);
-  const discountedSubtotal = rawSubtotal - discountAmount;
+  const discountAmount = 0;
+  const discountedSubtotal = rawSubtotal;
   const addonTotal = addons
     .filter((addon) => selectedAddonIds.includes(addon.id))
     .reduce((sum, addon) => sum + Number(addon.price || 0), 0);
@@ -117,24 +116,12 @@ export default function Booking() {
   const dueNow = paymentOption === 'deposit' ? Math.round(grandTotal * 0.5) : grandTotal;
   const dueAtCheckIn = grandTotal - dueNow;
 
-  const handleApplyPromo = (e) => {
-    e.preventDefault();
-    const code = promoCode.trim().toUpperCase();
-    if (code === 'WELCOME10') {
-      setDiscountPercent(10);
-      setAppliedPromo(code);
-      toast.success('🎉 10% First Booking discount applied!');
-    } else if (code === 'SUMMER20') {
-      setDiscountPercent(20);
-      setAppliedPromo(code);
-      toast.success('🎉 20% Vacation discount applied!');
-    } else {
-      toast.error('Invalid or expired promotional coupon code.');
-    }
-  };
-
   const handleProceedToPayment = async (e) => {
     e.preventDefault();
+    if (!property || !checkIn || !checkOut || nights < 1 || ratePerNight <= 0) {
+      toast.error('Select a property and valid stay dates before continuing.');
+      return;
+    }
     if (!termsAccepted) {
       toast.error('Please accept the Terms of Service & Rental House Rules');
       return;
@@ -157,7 +144,7 @@ export default function Booking() {
         checkOutDate: checkOut,
         numberOfGuests: guests,
         totalAmount: grandTotal,
-        discountCode: appliedPromo || null,
+        discountCode: null,
         discountAmount,
         specialRequests,
         arrivalWindow,
@@ -206,7 +193,7 @@ export default function Booking() {
                     required
                     value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="e.g. David Kamau"
+                    placeholder="Guest full name"
                     className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -218,7 +205,7 @@ export default function Booking() {
                     required
                     value={guestEmail}
                     onChange={(e) => setGuestEmail(e.target.value)}
-                    placeholder="e.g. david@example.com"
+                    placeholder="Email address"
                     className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -245,7 +232,7 @@ export default function Booking() {
                     required
                     value={guestPhone}
                     onChange={(e) => setGuestPhone(e.target.value)}
-                    placeholder="e.g. +254 712 345678"
+                    placeholder="Phone number"
                     className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs font-semibold text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -256,7 +243,7 @@ export default function Booking() {
                     rows="2"
                     value={specialRequests}
                     onChange={(e) => setSpecialRequests(e.target.value)}
-                    placeholder="e.g. Late check-in at 8 PM, extra towels, ground floor preference..."
+                    placeholder="Add any requests for your stay"
                     className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -265,11 +252,12 @@ export default function Booking() {
 
             {/* Split Deposit Payment Plan */}
             {addons.length > 0 && (
-              <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-4">
-                <h2 className="text-base font-extrabold text-neutral-900 pb-3 border-b border-neutral-100">
-                  Optional Local Services
-                </h2>
-                <p className="text-xs text-neutral-500">Add practical services for a smoother stay. Prices are in KES and included in your booking total.</p>
+              <div className="bg-white p-6 sm:p-7 rounded-3xl border border-neutral-200 shadow-sm space-y-5">
+                <div className="pb-4 border-b border-neutral-100">
+                  <span className="text-[10px] font-black tracking-[0.16em] uppercase text-emerald-700">Make it your stay</span>
+                  <h2 className="text-lg font-extrabold text-neutral-900 mt-1">Optional local services</h2>
+                  <p className="text-xs text-neutral-500 mt-1">Choose useful extras for your visit. Selected services are added to your total.</p>
+                </div>
 
                 <button
                   type="button"
@@ -279,36 +267,43 @@ export default function Booking() {
                       ? current.filter((id) => id !== 'addon-airport')
                       : [...current, 'addon-airport'];
                   })}
-                  className={`w-full rounded-2xl border-2 p-3 text-left transition ${selectedAddonIds.includes('addon-airport') ? 'border-amber-500 bg-amber-50' : 'border-dashed border-neutral-300 bg-neutral-50 hover:border-amber-300'}`}
+                  aria-pressed={selectedAddonIds.includes('addon-airport')}
+                  className={`w-full rounded-2xl border p-4 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${selectedAddonIds.includes('addon-airport') ? 'border-amber-400 bg-amber-50 shadow-sm' : 'border-neutral-200 bg-neutral-50/70 hover:border-amber-300 hover:bg-amber-50/50'}`}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <span className="block text-sm font-extrabold text-neutral-900">Need airport or room pickup?</span>
-                      <span className="block text-[11px] text-neutral-500">We can arrange transfers from the airport, hotel, office, or direct delivery to your room.</span>
+                    <div className="flex items-start gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-600 shadow-sm" aria-hidden="true"><FaPlane /></span>
+                      <span>
+                        <span className="block text-sm font-extrabold text-neutral-900">Need airport or room pickup?</span>
+                        <span className="block text-[11px] leading-relaxed text-neutral-500 mt-1">Arrange a transfer from the airport, hotel, office, or to your room.</span>
+                      </span>
                     </div>
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black ${selectedAddonIds.includes('addon-airport') ? 'bg-amber-500 text-white' : 'bg-white text-neutral-700 border border-neutral-200'}`}>
+                    <span className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[10px] font-black ${selectedAddonIds.includes('addon-airport') ? 'bg-amber-500 text-white' : 'bg-white text-neutral-700 border border-neutral-200'}`}>
                       {selectedAddonIds.includes('addon-airport') ? 'Selected' : 'Add service'}
                     </span>
                   </div>
                 </button>
 
-                <p className="text-[11px] text-neutral-500 italic">
-                  This service includes airport or room transfer coordination.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {addons.map((addon) => {
                     const selected = selectedAddonIds.includes(addon.id);
                     return (
                       <button
                         type="button"
                         key={addon.id}
+                        aria-pressed={selected}
                         onClick={() => setSelectedAddonIds((current) => selected ? current.filter((id) => id !== addon.id) : [...current, addon.id])}
-                        className={`text-left p-3 rounded-2xl border-2 transition ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-neutral-200 hover:border-emerald-300'}`}
+                        className={`text-left p-4 rounded-2xl border transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${selected ? 'border-emerald-500 bg-emerald-50 shadow-sm' : 'border-neutral-200 bg-white hover:border-emerald-300 hover:shadow-sm'}`}
                       >
-                        <span className="font-bold text-xs text-neutral-900 block">{addon.name}</span>
-                        <span className="text-[11px] text-neutral-500 block mt-1">{addon.description}</span>
-                        <span className="text-xs font-black text-emerald-700 block mt-2">{formatKES(addon.price)}</span>
+                        <span className="flex items-start justify-between gap-3">
+                          <span className="font-extrabold text-sm text-neutral-900">{addon.name}</span>
+                          {selected && <FaCheckCircle className="mt-0.5 shrink-0 text-emerald-600" aria-label="Selected" />}
+                        </span>
+                        <span className="text-xs leading-relaxed text-neutral-500 block mt-2 min-h-8">{addon.description}</span>
+                        <span className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-neutral-100">
+                          <span className="text-[10px] font-bold uppercase tracking-wide text-neutral-400">Per stay</span>
+                          <span className="text-sm font-black text-emerald-700">{formatKES(addon.price)}</span>
+                        </span>
                       </button>
                     );
                   })}
@@ -397,23 +392,22 @@ export default function Booking() {
                   onChange={(e) => setTermsAccepted(e.target.checked)}
                   className="w-4 h-4 text-amber-500 rounded border-neutral-300 mt-0.5"
                 />
-                <span>I agree to the House Rules, Property Cancellation Policy, and RMS Terms of Service.</span>
+                <span>I agree to the House Rules, Property Cancellation Policy, and CozyStay Terms of Service.</span>
               </label>
             </div>
           </div>
 
           {/* Right Column: Order Summary (in KES) */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-3xl shadow-xl border border-neutral-200 p-6 sticky top-24 space-y-6">
+            <div className="bg-white rounded-3xl shadow-xl border border-neutral-200 p-5 sm:p-6 sticky top-24 space-y-5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black tracking-[0.16em] uppercase text-neutral-400">Booking summary</span>
+                <FaShieldAlt className="text-emerald-700" aria-hidden="true" />
+              </div>
               <div className="flex gap-4 items-center pb-4 border-b border-neutral-100">
-                <img
-                  src={
-                    (Array.isArray(property?.images) ? property.images[0] : property?.images) ||
-                    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400'
-                  }
-                  alt={property?.name}
-                  className="w-16 h-16 rounded-2xl object-cover"
-                />
+                {(Array.isArray(property?.images) ? property.images[0] : property?.images)
+                  ? <img src={Array.isArray(property.images) ? property.images[0] : property.images} alt={property?.name} className="w-[76px] h-[76px] rounded-2xl object-cover ring-1 ring-neutral-200" />
+                  : <div className="w-[76px] h-[76px] rounded-2xl bg-neutral-100 flex items-center justify-center text-[10px] text-neutral-500">No image</div>}
                 <div>
                   <span className="text-[10px] text-neutral-400 font-bold uppercase block">{property?.type?.replace('_', ' ')}</span>
                   <h3 className="font-extrabold text-xs text-neutral-900 line-clamp-1">{property?.name}</h3>
@@ -422,7 +416,7 @@ export default function Booking() {
               </div>
 
               {/* Dates & Guests */}
-              <div className="space-y-2 text-xs text-neutral-600 bg-neutral-50 p-4 rounded-2xl border border-neutral-100">
+              <div className="space-y-3 text-xs text-neutral-600 bg-neutral-50 p-4 rounded-2xl border border-neutral-100">
                 <div className="flex justify-between">
                   <span className="flex items-center gap-1"><FaCalendarAlt className="text-amber-500" /> Check-In:</span>
                   <span className="font-bold text-neutral-800">{checkIn}</span>
@@ -436,29 +430,6 @@ export default function Booking() {
                   <span className="font-bold text-neutral-800">{guests} Guest(s)</span>
                 </div>
               </div>
-
-              {/* Coupon Form */}
-              <form onSubmit={handleApplyPromo} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Promo code (e.g. WELCOME10)"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value)}
-                  className="flex-1 px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-mono font-bold uppercase focus:outline-none"
-                />
-                <button
-                  type="submit"
-                  className="bg-neutral-800 hover:bg-neutral-900 text-white font-bold text-xs px-4 py-2 rounded-xl transition"
-                >
-                  Apply
-                </button>
-              </form>
-
-              {appliedPromo && (
-                <div className="text-[11px] text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
-                  <FaTag /> Code {appliedPromo} applied ({discountPercent}% Off)
-                </div>
-              )}
 
               {/* Financial Calculation in KES */}
               <div className="space-y-2 text-xs text-neutral-600 border-t border-neutral-100 pt-4">
@@ -474,12 +445,6 @@ export default function Booking() {
                   </div>
                 )}
 
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-emerald-600 font-bold">
-                    <span>Discount ({discountPercent}%):</span>
-                    <span>-{formatKES(discountAmount)}</span>
-                  </div>
-                )}
 
                 <div className="flex justify-between">
                   <span>16% VAT Tax:</span>
@@ -491,7 +456,7 @@ export default function Booking() {
                   <span>{formatKES(grandTotal)}</span>
                 </div>
 
-                <div className="flex justify-between pt-1 font-black text-sm text-amber-600">
+                <div className="flex justify-between items-center mt-2 px-3 py-3 rounded-xl bg-amber-50 text-sm font-black text-amber-800">
                   <span>Amount Due Now:</span>
                   <span>{formatKES(dueNow)}</span>
                 </div>
@@ -508,7 +473,7 @@ export default function Booking() {
               <button
                 onClick={handleProceedToPayment}
                 disabled={isSubmitting}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-4 px-4 rounded-2xl shadow-md transition text-sm flex items-center justify-center gap-2"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-4 px-4 rounded-xl shadow-md hover:shadow-lg transition duration-200 text-sm flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 disabled:opacity-60"
               >
                 <FaLock size={12} /> {isSubmitting ? 'Processing...' : `Pay ${formatKES(dueNow)} & Continue`}
               </button>

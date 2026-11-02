@@ -29,12 +29,8 @@ export default function SyncStatus({ lastSync }) {
         headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
       });
       setSyncLogs(res.data?.data?.data || []);
-    } catch (e) {
-      // Mock local fallback logs if server unreachable
-      setSyncLogs([
-        { id: 'log-1', entity_type: 'properties', action: 'pull', status: 'synced', timestamp: new Date().toISOString() },
-        { id: 'log-2', entity_type: 'bookings', action: 'push', status: 'synced', timestamp: new Date(Date.now() - 3600000).toISOString() },
-      ]);
+    } catch {
+      setSyncLogs([]);
     }
   };
 

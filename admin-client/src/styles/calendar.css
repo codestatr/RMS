@@ -7,7 +7,7 @@
 .calendar-legend-item { display:flex; align-items:center; gap:6px; white-space:nowrap; }
 .calendar-swatch { width:12px; height:12px; border-radius:4px; }
 .calendar-swatch.confirmed { background:#10b981; }
-.calendar-swatch.maintenance { background:#f59e0b; }
+.calendar-swatch.maintenance { background:var(--brand-color); }
 .calendar-swatch.available { border:1px solid var(--neutral-300); background:var(--neutral-100); }
 .calendar-card { padding:16px; overflow:hidden; border:1px solid var(--neutral-200); border-radius:14px; background:#fff; box-shadow:0 2px 8px rgba(15,23,42,.05); }
 .calendar-scroll { min-width:940px; overflow-x:auto; }
@@ -22,7 +22,7 @@
 .calendar-unit span { display:block; margin-top:3px; color:var(--neutral-400); font-size:.64rem; font-weight:500; }
 .calendar-cell { display:flex; height:36px; align-items:center; justify-content:center; overflow:hidden; border:1px solid transparent; border-radius:5px; color:transparent; font-size:.58rem; font-weight:800; transition:.15s ease; }
 .calendar-cell.booked { color:#fff; background:#10b981; box-shadow:0 1px 3px rgba(16,185,129,.2); }
-.calendar-cell.maintenance { color:#92400e; border-color:#fcd34d; background:#fef3c7; }
+.calendar-cell.maintenance { color:var(--brand-800); border-color:var(--brand-300); background:var(--brand-100); }
 .calendar-cell.available { border-color:var(--neutral-200); background:var(--neutral-50); cursor:pointer; }
-.calendar-cell.available:hover { color:var(--neutral-400); background:#fffbeb; border-color:var(--primary-200); }
+.calendar-cell.available:hover { color:var(--neutral-400); background:var(--brand-50); border-color:var(--brand-200); }
 @media (max-width:800px) { .calendar-header { flex-direction:column; } .calendar-legend { justify-content:flex-start; } }

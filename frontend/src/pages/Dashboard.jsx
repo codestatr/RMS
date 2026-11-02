@@ -21,7 +21,8 @@ import { useWishlistStore } from '../store/wishlistStore';
 import { bookingService } from '../services/bookingService';
 import { authService } from '../services/authService';
 import { paymentService } from '../services/paymentService';
-import { formatKES, formatUSD } from '../utils/currency';
+import { formatKES } from '../utils/currency';
+import ReceiptPrint from '../components/ReceiptPrint';
 import toast from 'react-hot-toast';
 
 export default function Dashboard() {
@@ -360,11 +361,11 @@ export default function Dashboard() {
                         ? p.images[0]
                         : typeof p.images === 'string'
                         ? p.images.split(',')[0]
-                        : null) || 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600';
+                        : null) || null;
 
                     return (
                       <div key={p.id} className="border border-neutral-200 rounded-2xl overflow-hidden shadow-sm flex flex-col bg-white">
-                        <img src={img} alt={p.name} className="w-full h-40 object-cover" />
+                        {img ? <img src={img} alt={p.name} className="w-full h-40 object-cover" /> : <div className="w-full h-40 bg-neutral-100 flex items-center justify-center text-xs text-neutral-500">No property image</div>}
                         <div className="p-4 flex-1 flex flex-col justify-between">
                           <div>
                             <span className="text-[10px] text-neutral-400 font-semibold">{p.city}</span>
@@ -563,64 +564,19 @@ export default function Dashboard() {
 
       {/* Printable Receipt Viewer Modal */}
       {selectedReceipt && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-8 shadow-2xl border border-neutral-200 max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center pb-4 border-b border-neutral-100 mb-6">
-              <h3 className="font-extrabold text-lg text-neutral-900 flex items-center gap-2">
-                <FaReceipt className="text-amber-500" /> Digital Tax Invoice
-              </h3>
-              <button onClick={() => setSelectedReceipt(null)} className="text-neutral-400 hover:text-neutral-700">
-                <FaTimes size={18} />
-              </button>
+        <div className="website-receipt-layer">
+          <div className="website-receipt-viewer">
+            <div className="website-receipt-viewer-head no-print">
+              <h3><FaReceipt className="text-amber-500" /> Payment Receipt</h3>
+              <button onClick={() => setSelectedReceipt(null)} aria-label="Close receipt"><FaTimes size={18} /></button>
             </div>
-
-            <div className="space-y-4 text-xs">
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Invoice Number:</span>
-                <span className="font-bold text-neutral-900">{selectedReceipt.receiptNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Property:</span>
-                <span className="font-bold text-neutral-900">{selectedReceipt.property.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Check-In / Out:</span>
-                <span className="font-semibold text-neutral-800">
-                  {selectedReceipt.stay.checkInDate} to {selectedReceipt.stay.checkOutDate}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-neutral-500">Payment Method:</span>
-                <span className="font-semibold text-neutral-800 uppercase">
-                  {selectedReceipt.billing.paymentMethod} ({selectedReceipt.billing.currency})
-                </span>
-              </div>
-              <div className="border-t border-neutral-200 pt-3 space-y-1.5">
-                <div className="flex justify-between">
-                  <span>Subtotal (Net):</span>
-                  <span>{formatKES(selectedReceipt.billing.subtotal)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tax ({selectedReceipt.billing.taxRate}):</span>
-                  <span>{formatKES(selectedReceipt.billing.taxAmount)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-sm text-neutral-900 pt-2 border-t border-neutral-200">
-                  <span>Total Amount Paid:</span>
-                  <span className="text-amber-600 font-mono">
-                    {selectedReceipt.billing.paymentMethod === 'paypal'
-                      ? `${formatUSD(selectedReceipt.billing.amountPaid)} (${formatKES(selectedReceipt.billing.amountPaid)})`
-                      : formatKES(selectedReceipt.billing.amountPaid)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 flex gap-3">
+            <ReceiptPrint receipt={selectedReceipt} />
+            <div className="website-receipt-viewer-actions no-print">
               <button
                 onClick={() => window.print()}
-                className="flex-1 bg-neutral-800 hover:bg-neutral-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2"
+                className="bg-neutral-800 hover:bg-neutral-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2"
               >
-                <FaPrint /> Print PDF
+                <FaPrint /> Print thermal receipt
               </button>
               <button
                 onClick={() => setSelectedReceipt(null)}

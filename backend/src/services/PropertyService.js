@@ -267,11 +267,23 @@ class PropertyService {
       city,
       country,
       pricePerNight,
+      pricePerWeek,
+      pricePerMonth,
       capacity,
       bedrooms,
       bathrooms,
       status,
     } = sanitized
+
+    if (type && !validatePropertyType(type)) throw new ValidationError('Invalid property type')
+    for (const [label, amount] of [['nightly', pricePerNight], ['weekly', pricePerWeek], ['monthly', pricePerMonth]]) {
+      if (amount !== undefined && amount !== null && amount !== '' && !validateDecimal(amount, 10, 2)) {
+        throw new ValidationError(`Invalid ${label} price format`)
+      }
+    }
+    if (status && !['available', 'inactive', 'maintenance'].includes(status)) {
+      throw new ValidationError('Property status must be available, inactive, or maintenance')
+    }
 
     await query(
       `UPDATE properties SET
@@ -282,6 +294,8 @@ class PropertyService {
        city = COALESCE(?, city),
        country = COALESCE(?, country),
        price_per_night = COALESCE(?, price_per_night),
+       price_per_week = COALESCE(?, price_per_week),
+       price_per_month = COALESCE(?, price_per_month),
        capacity = COALESCE(?, capacity),
        bedrooms = COALESCE(?, bedrooms),
        bathrooms = COALESCE(?, bathrooms),
@@ -289,7 +303,7 @@ class PropertyService {
        updated_at = NOW()
        WHERE id = ?`,
       [
-        name, type, description, address, city, country, pricePerNight,
+        name, type, description, address, city, country, pricePerNight, pricePerWeek, pricePerMonth,
         capacity, bedrooms, bathrooms, status, propertyId,
       ]
     )

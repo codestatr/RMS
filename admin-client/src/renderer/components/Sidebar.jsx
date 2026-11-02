@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FaHome,
   FaBuilding,
@@ -32,11 +32,18 @@ export default function Sidebar({
   collapsed,
   onToggleCollapse,
   syncStatus,
+  user,
   userRole = 'admin',
   onLogout,
 }) {
   const isCashier = userRole === 'cashier';
-  const branding = getBranding();
+  const isOwner = userRole === 'property_owner';
+  const [branding, setBranding] = useState(getBranding);
+  useEffect(() => {
+    const refreshBranding = (event) => setBranding(event.detail || getBranding());
+    window.addEventListener('rms:branding-changed', refreshBranding);
+    return () => window.removeEventListener('rms:branding-changed', refreshBranding);
+  }, []);
 
   const adminSections = [
     {
@@ -100,7 +107,11 @@ export default function Sidebar({
     },
   ];
 
-  const sections = isCashier ? cashierSections : adminSections;
+  const ownerSections = [
+    { title: 'OWNER WORKSPACE', items: [{ id: 'owner_portal', label: 'Owner Portal', icon: FaBuilding }] },
+  ];
+
+  const sections = isOwner ? ownerSections : isCashier ? cashierSections : adminSections;
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -114,7 +125,7 @@ export default function Sidebar({
                 {branding.name}
               </span>
               <span className="brand-role">
-                {isCashier ? 'Front-Desk Node' : 'Management Hub'}
+                {isOwner ? 'Property Owner' : isCashier ? 'Front-Desk Node' : 'Management Hub'}
               </span>
             </div>
           )}
@@ -142,6 +153,7 @@ export default function Sidebar({
                 <button
                   key={item.id}
                   className={`nav-item ${isActive ? 'active' : ''}`}
+                  style={isActive ? { backgroundColor: 'color-mix(in srgb, var(--brand-contrast, #fff) 20%, transparent)', color: 'var(--brand-contrast, #fff)' } : undefined}
                   onClick={() => onPageChange(item.id)}
                   title={collapsed ? item.label : ''}
                 >
@@ -159,9 +171,15 @@ export default function Sidebar({
 
       {/* Communication & Footer */}
       <div className="sidebar-footer space-y-2">
+        {!collapsed && user && (
+          <div className="sidebar-user" title={user.email || user.role}>
+            <span className="sidebar-user-initial">{user.firstName?.charAt(0)?.toUpperCase() || 'S'}</span>
+            <span className="sidebar-user-copy"><strong>{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Staff account'}</strong><small>{isOwner ? 'Property Owner' : isCashier ? 'Cashier' : 'Administrator'}</small></span>
+          </div>
+        )}
         <div className="sidebar-communication-block">
           {!collapsed && <div className="sidebar-section-title">COMMUNICATION</div>}
-          <NotificationsBell compact={collapsed} />
+          <NotificationsBell compact={collapsed} userRole={userRole} />
         </div>
 
         <div className="sync-indicator w-full justify-center">

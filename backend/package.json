@@ -8,8 +8,8 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon --exec node src/app.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --runInBand --testPathIgnorePatterns=backend/test.js",
+    "test:watch": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch --testPathIgnorePatterns=backend/test.js",
     "lint": "eslint src/**/*.js",
     "build": "echo Backend ready",
     "migrate": "node src/migrations/migrate.js",

@@ -45,7 +45,7 @@
 .maintenance-badge.clean { color: #047857; background: #ecfdf5; }
 .maintenance-badge.occupied { color: #0369a1; background: #f0f9ff; }
 .maintenance-badge.dirty { color: #be123c; background: #fff1f2; }
-.maintenance-badge.repair { color: #92400e; background: #fffbeb; }
+.maintenance-badge.repair { color: var(--brand-800); background: var(--brand-50); }
 
 .maintenance-grid {
   display: grid;
@@ -71,7 +71,7 @@
 .maintenance-card.clean { border-top-color: #10b981; }
 .maintenance-card.occupied { border-top-color: #0ea5e9; }
 .maintenance-card.dirty { border-top-color: #f43f5e; }
-.maintenance-card.maintenance { border-top-color: #f59e0b; }
+.maintenance-card.maintenance { border-top-color: var(--brand-color); }
 
 .maintenance-card-top, .maintenance-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .maintenance-type { color: var(--neutral-500); font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -79,7 +79,7 @@
 .maintenance-card.clean .maintenance-status { color: #047857; background: #ecfdf5; }
 .maintenance-card.occupied .maintenance-status { color: #0369a1; background: #f0f9ff; }
 .maintenance-card.dirty .maintenance-status { color: #be123c; background: #fff1f2; }
-.maintenance-card.maintenance .maintenance-status { color: #92400e; background: #fffbeb; }
+.maintenance-card.maintenance .maintenance-status { color: var(--brand-800); background: var(--brand-50); }
 .maintenance-unit-name { margin-top: 13px; color: var(--neutral-900); font-size: 0.95rem; font-weight: 800; line-height: 1.3; }
 .maintenance-notes { margin-top: 6px; color: var(--neutral-500); font-size: 0.75rem; font-style: italic; line-height: 1.4; }
 .maintenance-card-footer { padding-top: 13px; border-top: 1px solid var(--neutral-100); }
@@ -90,7 +90,7 @@
 .maintenance-actions button:hover { transform: translateY(-1px); }
 .maintenance-actions button.clean:hover, .maintenance-actions button.clean.active { border-color: #10b981; color: #ffffff; background: #059669; }
 .maintenance-actions button.dirty:hover, .maintenance-actions button.dirty.active { border-color: #f43f5e; color: #ffffff; background: #e11d48; }
-.maintenance-actions button.repair:hover, .maintenance-actions button.repair.active { border-color: #f59e0b; color: #ffffff; background: #d97706; }
+.maintenance-actions button.repair:hover, .maintenance-actions button.repair.active { border-color: var(--brand-600); color: var(--brand-contrast); background: var(--brand-600); }
 
 @media (max-width: 900px) { .maintenance-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .maintenance-header { flex-direction: column; } .maintenance-summary { justify-content: flex-start; } }
 @media (max-width: 600px) { .maintenance-grid { grid-template-columns: 1fr; } .maintenance-card-top, .maintenance-meta { align-items: flex-start; flex-direction: column; } }

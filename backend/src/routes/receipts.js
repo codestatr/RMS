@@ -28,7 +28,7 @@ router.post(
   authenticate,
   asyncHandler(async (req, res) => {
     await ReceiptService.assertAccess(req.params.paymentId, req.user);
-    const pdfBuffer = await ReceiptService.generateReceiptPdfBuffer(req.params.paymentId, req.body?.branding || {});
+    const pdfBuffer = await ReceiptService.generateReceiptPdfBuffer(req.params.paymentId);
     const receipt = await ReceiptService.generateReceipt(req.params.paymentId);
     const customerName = String(receipt.customer?.name || 'Customer').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '');
     res.setHeader('Content-Type', 'application/pdf');
@@ -46,10 +46,7 @@ router.get(
   authenticate,
   asyncHandler(async (req, res) => {
     await ReceiptService.assertAccess(req.params.paymentId, req.user);
-    const pdfBuffer = await ReceiptService.generateReceiptPdfBuffer(req.params.paymentId, {
-      name: req.query.businessName,
-      logo: req.query.logo,
-    });
+    const pdfBuffer = await ReceiptService.generateReceiptPdfBuffer(req.params.paymentId);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=Receipt-${req.params.paymentId}.pdf`);

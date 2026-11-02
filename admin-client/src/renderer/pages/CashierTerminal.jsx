@@ -6,6 +6,7 @@ import {
   FaClock,
   FaReceipt,
   FaExchangeAlt,
+  FaSignOutAlt,
 } from 'react-icons/fa';
 import CashierWalkIn from './cashier/CashierWalkIn';
 import CashierTender from './cashier/CashierTender';
@@ -78,7 +79,6 @@ export default function CashierTerminal({ activeShift, onOpenShift, onCloseShift
     }
     setCurrentShift(null);
     onCloseShift?.(summary);
-    onLogout?.();
   };
 
   const handleProceedToPayment = (bookingData) => {
@@ -159,6 +159,12 @@ export default function CashierTerminal({ activeShift, onOpenShift, onCloseShift
             <strong>{cashierDisplayName}</strong>
           </div>
         </div>
+
+        {onLogout && (
+          <button type="button" onClick={onLogout} className="pos-signout" aria-label="Sign out of the cashier portal">
+            <FaSignOutAlt /> <span>Sign out</span>
+          </button>
+        )}
 
         {isAdmin && (
           <button

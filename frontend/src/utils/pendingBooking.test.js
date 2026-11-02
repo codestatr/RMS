@@ -1,9 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { savePendingBooking, getPendingBooking, consumePendingBooking } from './pendingBooking';
 
 describe('pending booking resume flow', () => {
   beforeEach(() => {
-    sessionStorage.clear();
+    const storage = new Map();
+    vi.stubGlobal('sessionStorage', {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, String(value)),
+      removeItem: (key) => storage.delete(key),
+      clear: () => storage.clear(),
+    });
   });
 
   it('persists and resumes the draft booking after a login redirect', () => {

@@ -55,8 +55,8 @@ export default function Register() {
     <div className="min-h-screen bg-neutral-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link to="/" className="inline-flex items-center gap-2 text-3xl font-extrabold text-amber-500 mb-2">
-          <img src="/rms-logo.svg" alt="RMS Properties logo" className="h-10 w-10 rounded-xl object-cover border border-amber-200 shadow-sm" />
-          <span className="text-neutral-900">RMS Properties</span>
+          <img src="/rms-logo.svg" alt="CozyStay logo" className="h-10 w-10 rounded-xl object-cover border border-amber-200 shadow-sm" />
+          <span className="text-neutral-900">CozyStay</span>
         </Link>
         <h2 className="text-2xl font-extrabold text-neutral-900 tracking-tight">Create your guest account</h2>
         <p className="mt-1 text-xs text-neutral-500">
@@ -79,7 +79,7 @@ export default function Register() {
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Jane"
+                    placeholder="First name"
                     className="w-full pl-9 pr-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                   <FaUser className="absolute left-3 top-3 text-neutral-400 text-xs" />
@@ -93,7 +93,7 @@ export default function Register() {
                   required
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Doe"
+                  placeholder="Last name"
                   className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
@@ -107,7 +107,7 @@ export default function Register() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="jane@example.com"
+                  placeholder="Email address"
                   className="w-full pl-9 pr-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
                 <FaEnvelope className="absolute left-3 top-3 text-neutral-400 text-xs" />
@@ -119,7 +119,7 @@ export default function Register() {
               <div className="relative">
                 <input
                   type="tel"
-                  placeholder="+254 700 000000"
+                  placeholder="Phone number"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"

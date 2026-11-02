@@ -7,7 +7,8 @@ class NotificationService {
   constructor() {
     this.transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-      port: process.env.SMTP_PORT || 587,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
         user: process.env.SMTP_USER || 'test@ethereal.email',
         pass: process.env.SMTP_PASS || 'testpass',
@@ -18,7 +19,7 @@ class NotificationService {
   async sendEmail(to, subject, htmlContent) {
     try {
       const info = await this.transporter.sendMail({
-        from: `"RMS System" <${process.env.SMTP_USER || 'noreply@rms.local'}>`,
+        from: `"CozyStay" <${process.env.SMTP_USER || 'noreply@cozystay.local'}>`,
         to,
         subject,
         html: htmlContent,
@@ -39,7 +40,7 @@ class NotificationService {
       <p><strong>Check-in:</strong> ${bookingDetails.checkInDate}</p>
       <p><strong>Check-out:</strong> ${bookingDetails.checkOutDate}</p>
       <p><strong>Total Amount:</strong> $${bookingDetails.totalAmount}</p>
-      <p>Thank you for choosing RMS.</p>
+      <p>Thank you for choosing CozyStay.</p>
     `;
     return this.sendEmail(email, subject, html);
   }
@@ -54,7 +55,7 @@ class NotificationService {
     `;
     
     const mailOptions = {
-        from: `"RMS System" <${process.env.SMTP_USER || 'noreply@rms.local'}>`,
+        from: `"CozyStay" <${process.env.SMTP_USER || 'noreply@cozystay.local'}>`,
         to: email,
         subject,
         html,
@@ -80,12 +81,27 @@ class NotificationService {
   }
   
   async sendOTP(email, name, otp) {
-    const subject = `Your RMS Login Verification Code`;
+    const subject = `Your CozyStay Login Verification Code`;
     const html = `
       <h1>Hello ${name},</h1>
       <p>Your two-factor authentication code is:</p>
       <h2 style="background-color: #f59e0b; padding: 10px; display: inline-block; color: white;">${otp}</h2>
       <p>This code will expire in 10 minutes.</p>
+    `;
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendPasswordResetCode(email, name, code) {
+    const subject = 'CozyStay staff password recovery code';
+    const safeName = String(name || 'there').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    })[character]);
+    const html = `
+      <h1>Password recovery</h1>
+      <p>Hello ${safeName},</p>
+      <p>Use this code to choose a new password for your CozyStay staff account:</p>
+      <p style="font-size:28px;font-weight:700;letter-spacing:6px;color:#176b52">${code}</p>
+      <p>The code expires in 10 minutes and can be used once. If you did not request it, ignore this email.</p>
     `;
     return this.sendEmail(email, subject, html);
   }

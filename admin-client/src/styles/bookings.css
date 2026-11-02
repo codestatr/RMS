@@ -21,7 +21,7 @@
 .bookings-table .action-btn.danger:hover { color:#fff; background:#e11d48; border-color:#e11d48; }
 .bookings-table .status-badge { display:inline-flex; padding:4px 8px; border-radius:999px; font-size:.63rem; font-weight:900; text-transform:uppercase; }
 .bookings-table .status-confirmed, .bookings-table .status-active { color:#047857; background:#d1fae5; }
-.bookings-table .status-pending { color:#92400e; background:#fef3c7; }
+.bookings-table .status-pending { color:var(--brand-800); background:var(--brand-100); }
 .bookings-table .status-completed { color:#0369a1; background:#e0f2fe; }
 .bookings-table .status-cancelled { color:#be123c; background:#ffe4e6; }
 .bookings-table .status-default { color:var(--neutral-600); background:var(--neutral-100); }

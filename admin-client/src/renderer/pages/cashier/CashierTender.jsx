@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FaMoneyBillWave,
   FaMobileAlt,
@@ -17,8 +17,11 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
   const [method, setMethod] = useState('cash'); // 'cash' | 'mpesa' | 'card'
   const [tenderedAmount, setTenderedAmount] = useState(bookingData.totalAmount);
   const [transactionRef, setTransactionRef] = useState(`POS_CSH_${Date.now().toString().slice(-6)}`);
-  const [mpesaPhone, setMpesaPhone] = useState(bookingData.guestPhone || '0712345678');
+  const [mpesaPhone, setMpesaPhone] = useState(bookingData.guestPhone || '');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [stkWaiting, setStkWaiting] = useState(false);
+  const [checkoutRequestId, setCheckoutRequestId] = useState('');
+  const [pendingBookingId, setPendingBookingId] = useState('');
   const [receipt, setReceipt] = useState(null);
   const [paymentId, setPaymentId] = useState(null);
   const branding = getBranding();
@@ -33,6 +36,74 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
 
   const changeDue = Math.max(0, Number(tenderedAmount || 0) - bookingData.totalAmount);
 
+  useEffect(() => {
+    if (!stkWaiting || !checkoutRequestId || !pendingBookingId) return undefined;
+
+    let isActive = true;
+    const token = sessionStorage.getItem('rms_admin_token') || '';
+    const interval = window.setInterval(async () => {
+      try {
+        const statusResponse = await axios.get(
+          `${API_URL}/payments/mpesa/status/${encodeURIComponent(checkoutRequestId)}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const status = statusResponse.data?.data;
+
+        if (status?.status === 'paid') {
+          window.clearInterval(interval);
+          const receiptResponse = await axios.get(`${API_URL}/receipts/payment/${status.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!isActive) return;
+
+          const officialReceipt = receiptResponse.data?.data || null;
+          const paidAmount = Number(officialReceipt?.billing?.amountPaid ?? status.amount ?? bookingData.totalAmount);
+          setPaymentId(status.id);
+          setTransactionRef(officialReceipt?.billing?.transactionRef || status.transaction_ref || checkoutRequestId);
+          setReceipt({
+            receiptNumber: officialReceipt?.receiptNumber || `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}`,
+            bookingId: pendingBookingId,
+            customerName: officialReceipt?.customer?.name || bookingData.guestName,
+            customerPhone: officialReceipt?.customer?.phone || mpesaPhone,
+            propertyName: officialReceipt?.property?.name || bookingData.property.name,
+            checkInDate: officialReceipt?.stay?.checkInDate || bookingData.checkInDate,
+            checkOutDate: officialReceipt?.stay?.checkOutDate || bookingData.checkOutDate,
+            nights: bookingData.nights,
+            subtotal: Number(officialReceipt?.billing?.subtotal ?? bookingData.subtotal),
+            taxAmount: Number(officialReceipt?.billing?.taxAmount ?? bookingData.vatTax),
+            totalAmount: paidAmount,
+            remainingBalance: Math.max(0, Number(bookingData.totalAmount) - paidAmount),
+            amountTendered: paidAmount,
+            changeDue: 0,
+            method: 'MPESA',
+            transactionRef: officialReceipt?.billing?.transactionRef || status.transaction_ref || checkoutRequestId,
+            issuedAt: new Date().toLocaleString(),
+            paymentId: status.id,
+            cashierName: cashierDisplayName,
+          });
+          setStkWaiting(false);
+          return;
+        }
+
+        if (status?.status === 'failed') {
+          window.clearInterval(interval);
+          if (isActive) {
+            setStkWaiting(false);
+            setCheckoutRequestId('');
+            window.alert('The M-Pesa sandbox payment was not completed. You can send another request.');
+          }
+        }
+      } catch (error) {
+        console.warn('Waiting for M-Pesa confirmation:', error.response?.data?.error || error.message);
+      }
+    }, 3000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(interval);
+    };
+  }, [stkWaiting, checkoutRequestId, pendingBookingId, bookingData, mpesaPhone, cashierDisplayName]);
+
   const handleSelectMethod = (m) => {
     setMethod(m);
     if (m === 'cash') {
@@ -45,6 +116,11 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
   };
 
   const handleExecutePayment = async () => {
+    if (method === 'mpesa' && !mpesaPhone.trim()) {
+      alert('Enter the guest M-Pesa phone number.');
+      return;
+    }
+
     if (method === 'cash' && Number(tenderedAmount) < bookingData.totalAmount) {
       alert('Tendered cash amount is less than the total bill due.');
       return;
@@ -84,8 +160,25 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
         throw new Error('Unable to create the walk-in booking: backend did not return a valid booking ID.');
       }
 
+      if (method === 'mpesa') {
+        const stkResponse = await axios.post(
+          `${API_URL}/payments/mpesa/stk-push`,
+          { bookingId, amount: bookingData.totalAmount, phone: mpesaPhone },
+          { headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` } },
+        );
+        const stkData = stkResponse.data?.data;
+        if (!stkData?.checkoutRequestId) throw new Error('M-Pesa did not return a checkout request ID.');
+
+        setPendingBookingId(bookingId);
+        setCheckoutRequestId(stkData.checkoutRequestId);
+        setTransactionRef(stkData.checkoutRequestId);
+        setStkWaiting(true);
+        return;
+      }
+
       // 2. Create the payment record so the official PDF receipt has a payment ID.
       let createdPaymentId = null;
+      let officialReceipt = null;
       try {
         const paymentRes = await axios.post(
           `${API_URL}/payments`,
@@ -99,6 +192,16 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
         );
         createdPaymentId = paymentRes.data?.data?.id || paymentRes.data?.data?.paymentId || null;
         setPaymentId(createdPaymentId);
+        if (createdPaymentId) {
+          try {
+            const receiptRes = await axios.get(`${API_URL}/receipts/payment/${createdPaymentId}`, {
+              headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
+            });
+            officialReceipt = receiptRes.data?.data || null;
+          } catch (receiptError) {
+            console.warn('Official receipt details will be loaded from the server when downloaded:', receiptError.message);
+          }
+        }
       } catch (err) {
         throw new Error(err.response?.data?.error || `Payment could not be recorded: ${err.message}`);
       }
@@ -108,17 +211,17 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
       const receiptNo = `REC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randSuffix}`;
 
       const generatedReceipt = {
-        receiptNumber: receiptNo,
+        receiptNumber: officialReceipt?.receiptNumber || receiptNo,
         bookingId,
-        customerName: bookingData.guestName,
-        customerPhone: bookingData.guestPhone,
-        propertyName: bookingData.property.name,
-        checkInDate: bookingData.checkInDate,
-        checkOutDate: bookingData.checkOutDate,
+        customerName: officialReceipt?.customer?.name || bookingData.guestName,
+        customerPhone: officialReceipt?.customer?.phone || bookingData.guestPhone,
+        propertyName: officialReceipt?.property?.name || bookingData.property.name,
+        checkInDate: officialReceipt?.stay?.checkInDate || bookingData.checkInDate,
+        checkOutDate: officialReceipt?.stay?.checkOutDate || bookingData.checkOutDate,
         nights: bookingData.nights,
-        subtotal: bookingData.subtotal,
-        taxAmount: bookingData.vatTax,
-        totalAmount: bookingData.totalAmount,
+        subtotal: officialReceipt?.billing?.subtotal ?? bookingData.subtotal,
+        taxAmount: officialReceipt?.billing?.taxAmount ?? bookingData.vatTax,
+        totalAmount: officialReceipt?.billing?.amountPaid ?? bookingData.totalAmount,
         remainingBalance: Math.max(0, Number(bookingData.totalAmount) - Number(tenderedAmount)),
         amountTendered: Number(tenderedAmount),
         changeDue,
@@ -193,15 +296,15 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
             <FaCheckCircle />
           </div>
           <h2>Walk-In Transaction Complete!</h2>
-          <p>Official receipt generated and saved to shift ledger.</p>
+          <p>Payment recorded. Download the official branded PDF or print this receipt.</p>
         </div>
 
         {/* Thermal-style Receipt Layout */}
-        <div className="thermal-receipt-preview" style={branding.logo ? { backgroundImage: `linear-gradient(rgba(248,250,252,.88), rgba(248,250,252,.88)), url(${branding.logo})`, backgroundPosition: 'center', backgroundSize: '145px', backgroundRepeat: 'no-repeat' } : undefined}>
+        <div className="thermal-receipt-preview" style={{ '--receipt-accent': branding.brandColor }}>
           <div className="thermal-receipt-header">
             {branding.logo && <img src={branding.logo} alt={`${branding.name} logo`} className="thermal-receipt-logo" />}
             <h3>{branding.name}</h3>
-            <p>PIN: P051234567Z | 16% VAT INC</p>
+            <p>WALK-IN BOOKING RECEIPT · KES</p>
             <p>{receipt.receiptNumber}</p>
           </div>
 
@@ -359,25 +462,20 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
           {/* M-Pesa Panel */}
           {method === 'mpesa' && (
             <div className="pos-payment-panel">
-              <h3>M-Pesa Mobile Money Confirmation</h3>
+              <h3>M-Pesa STK Push</h3>
               <div>
-                <label>Guest Mobile Phone Number</label>
+                <label>Guest M-Pesa Phone Number</label>
                 <input
                   type="tel"
                   value={mpesaPhone}
                   onChange={(e) => setMpesaPhone(e.target.value)}
+                  disabled={stkWaiting || isProcessing}
+                  placeholder="07xx xxx xxx or 2547xx xxx xxx"
                   className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs font-semibold"
                 />
               </div>
-              <div>
-                <label>M-Pesa Confirmation Code</label>
-                <input
-                  type="text"
-                  value={transactionRef}
-                  onChange={(e) => setTransactionRef(e.target.value)}
-                  className="w-full p-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs font-mono font-bold"
-                />
-              </div>
+              <p className="text-xs text-neutral-500">We’ll request payment from this number. The sale is completed after M-Pesa confirms it.</p>
+              {stkWaiting && <p className="text-xs font-semibold text-emerald-700">Waiting for M-Pesa confirmation for {mpesaPhone}…</p>}
             </div>
           )}
 
@@ -426,10 +524,10 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
 
             <button
               onClick={handleExecutePayment}
-              disabled={isProcessing}
+              disabled={isProcessing || stkWaiting}
               className="pos-submit-button"
             >
-              <FaCheckCircle /> {isProcessing ? 'Processing...' : 'Complete & Generate Receipt'}
+              <FaCheckCircle /> {isProcessing ? 'Processing...' : stkWaiting ? 'Waiting for M-Pesa confirmation...' : method === 'mpesa' ? 'Send M-Pesa Request' : 'Complete & Generate Receipt'}
             </button>
           </div>
         </div>

@@ -44,12 +44,7 @@ export default function FrontDeskDesk() {
       });
       setBookings(res.data?.data?.data || res.data?.data || []);
     } catch {
-      // Fallback demo bookings in KES
-      setBookings([
-        { id: 'book-201', guestName: 'David Kamau', phone: '+254744000444', propertyName: 'Sunlight Luxury 1-Bedroom Apartment', checkInDate: '2026-09-05', checkOutDate: '2026-09-08', totalAmount: 16500, status: 'confirmed' },
-        { id: 'book-202', guestName: 'John Doe', phone: '+254755000555', propertyName: 'Ocean Breeze Beachfront Airbnb Villa', checkInDate: '2026-09-10', checkOutDate: '2026-09-15', totalAmount: 90000, status: 'checked_in' },
-        { id: 'book-203', guestName: 'Sarah Njeri', phone: '+254766000666', propertyName: 'Cozy Urban Bedsitter Studio', checkInDate: '2026-09-20', checkOutDate: '2026-09-22', totalAmount: 5000, status: 'pending' },
-      ]);
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -67,10 +62,7 @@ export default function FrontDeskDesk() {
       );
       alert(`Booking #${bookingId.slice(0, 8)} status updated to ${newStatus.replace('_', ' ').toUpperCase()}!`);
     } catch (err) {
-      setBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b))
-      );
-      alert(`Status updated to ${newStatus.replace('_', ' ').toUpperCase()} (Local mode)`);
+      alert(`Unable to update booking status: ${err.response?.data?.error || err.message}`);
     }
   };
 

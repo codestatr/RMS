@@ -1,11 +1,17 @@
 const DEFAULT_BRANDING = {
-  name: 'RMS House Rental & Management',
+  name: 'CozyStay',
   logo: '',
+  brandColor: '#176b52',
 };
 
 export function getBranding() {
   try {
-    return { ...DEFAULT_BRANDING, ...JSON.parse(localStorage.getItem('rms_branding') || '{}') };
+    const stored = JSON.parse(localStorage.getItem('rms_branding') || '{}');
+    if (typeof stored.name === 'string' && /\brms\b/i.test(stored.name)) {
+      stored.name = DEFAULT_BRANDING.name;
+      localStorage.setItem('rms_branding', JSON.stringify(stored));
+    }
+    return { ...DEFAULT_BRANDING, ...stored };
   } catch {
     return DEFAULT_BRANDING;
   }

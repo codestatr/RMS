@@ -64,13 +64,11 @@ namespace RMS.POSSystem.Views
             _method = method;
             var inactiveBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3F4F6"));
             var inactiveFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"));
-            var activeBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
-
             BtnMethodCash.Background = inactiveBg; BtnMethodCash.Foreground = inactiveFg;
             BtnMethodCard.Background = inactiveBg; BtnMethodCard.Foreground = inactiveFg;
             BtnMethodMpesa.Background = inactiveBg; BtnMethodMpesa.Foreground = inactiveFg;
 
-            activeBtn.Background = activeBg;
+            activeBtn.SetResourceReference(Button.BackgroundProperty, "AmberBrush");
             activeBtn.Foreground = Brushes.White;
 
             if (method == "cash")
@@ -137,14 +135,14 @@ namespace RMS.POSSystem.Views
                 _specialRequests
             );
 
-            var receiptText = ReceiptService.GenerateReceiptText(tx, _property, AuthService.CurrentUser?.FullName ?? "Cashier");
-
+            var printed = ReceiptService.PrintReceipt(tx, _property, AuthService.CurrentUser?.FullName ?? "Cashier");
             MessageBox.Show(
-                $"{receiptText}\n\n[Receipt Successfully Sent to Printer & Saved]",
-                "Transaction Complete - Receipt Printed",
+                printed
+                    ? $"Payment recorded and receipt sent to the selected printer. To create a PDF, choose Microsoft Print to PDF in the printer list.\n\nReceipt: {tx.ReceiptNumber}"
+                    : $"Payment recorded. Printing was cancelled. You can reprint receipt {tx.ReceiptNumber} from Transactions.",
+                printed ? "Transaction Complete" : "Transaction Recorded",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information
-            );
+                MessageBoxImage.Information);
 
             _parent.UpdateHeaderInfo();
             _parent.NavigateToTransactions();

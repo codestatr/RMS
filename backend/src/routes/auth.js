@@ -1,10 +1,31 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 import UserService from '../services/UserService.js'
 import { authenticate } from '../middleware/auth.js'
 import { asyncHandler, ApiError, ValidationError, UnauthorizedError } from '../utils/errors.js'
 import { verifyRefreshToken, generateToken, verifyToken } from '../utils/auth.js'
 
 const router = express.Router()
+const passwordRecoveryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many recovery attempts. Wait 15 minutes and try again.' },
+})
+
+/** Request a recovery code for a staff account. */
+router.post('/staff/forgot-password', passwordRecoveryLimiter, asyncHandler(async (req, res) => {
+  const result = await UserService.requestStaffPasswordReset(req.body?.email)
+  res.json({ success: true, message: result.message })
+}))
+
+/** Verify a staff recovery code and set a new password. */
+router.post('/staff/reset-password', passwordRecoveryLimiter, asyncHandler(async (req, res) => {
+  const { email, code, newPassword } = req.body || {}
+  const result = await UserService.resetStaffPassword(email, code, newPassword)
+  res.json({ success: true, message: result.message })
+}))
 
 /**
  * POST /api/auth/register

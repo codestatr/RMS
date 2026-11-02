@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(20),
   first_name VARCHAR(100),
   last_name VARCHAR(100),
-  role ENUM('customer', 'admin', 'cashier') NOT NULL DEFAULT 'customer',
+  role ENUM('customer', 'admin', 'cashier', 'property_owner') NOT NULL DEFAULT 'customer',
   status ENUM('active', 'inactive', 'suspended') NOT NULL DEFAULT 'active',
   password_hash VARCHAR(255) NOT NULL,
   profile_image_url VARCHAR(500),
@@ -25,6 +25,17 @@ CREATE TABLE IF NOT EXISTS users (
   KEY idx_email (email),
   KEY idx_role (role),
   KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- One active, hashed, short-lived recovery code per staff account.
+CREATE TABLE IF NOT EXISTS staff_password_reset_codes (
+  user_id VARCHAR(36) PRIMARY KEY,
+  code_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  KEY idx_staff_reset_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Properties table
@@ -299,3 +310,11 @@ SELECT
 FROM properties p
 LEFT JOIN bookings b ON p.id = b.property_id AND b.status IN ('confirmed', 'checked_out')
 GROUP BY p.id;
+CREATE TABLE IF NOT EXISTS system_settings (
+  setting_key VARCHAR(100) PRIMARY KEY,
+  setting_value LONGTEXT NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('brand_color', '#176b52');
+INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('brand_name', 'CozyStay'), ('brand_logo', '');

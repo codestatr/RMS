@@ -1,6 +1,6 @@
-# RMS API Documentation
+# CozyStay API Documentation
 
-Complete REST API reference for the House Rental & Booking Management System.
+Complete REST API reference for the CozyStay House Rental & Booking Management System.
 
 **Base URL:** `http://localhost:3000/api`
 
@@ -22,11 +22,16 @@ Complete REST API reference for the House Rental & Booking Management System.
 
 ## Authentication
 
-All endpoints (except `/auth/register` and `/auth/login`) require JWT token in the `Authorization` header:
+Protected endpoints require a JWT token in the `Authorization` header. Public endpoints include `/auth/register`, `/auth/login`, and `GET /settings/branding`:
 
 ```
 Authorization: Bearer <token>
 ```
+
+## System branding
+
+- `GET /settings/branding` returns the public system accent color. The customer website and POS use this value when loading their interface.
+- `PUT /settings/branding` updates the color and requires an admin token. Send `{"brandColor":"#336699"}`; the color must be a six-digit hex value.
 
 ### Roles and Permissions
 

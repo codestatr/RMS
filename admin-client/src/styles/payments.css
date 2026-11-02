@@ -114,8 +114,8 @@
 
 .status-pending,
 .status-partial {
-  color: #92400e;
-  background: #fffbeb;
+  color: var(--brand-800);
+  background: var(--brand-50);
 }
 
 .status-refunded,

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   FaSearch,
-  FaFilter,
   FaMapMarkerAlt,
   FaStar,
   FaHeart,
@@ -10,12 +9,12 @@ import {
   FaExchangeAlt,
   FaTimes,
   FaSlidersH,
-  FaCheck,
 } from 'react-icons/fa';
 import { propertyService } from '../services/propertyService';
 import { useWishlistStore } from '../store/wishlistStore';
 import { formatKES } from '../utils/currency';
 import toast from 'react-hot-toast';
+import '../styles/marketplace.css';
 
 export default function Browse() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -27,7 +26,7 @@ export default function Browse() {
   const [selectedTypes, setSelectedTypes] = useState(
     searchParams.get('type') ? [searchParams.get('type')] : []
   );
-  const [maxPrice, setMaxPrice] = useState(500000); // KES 500,000 max filter
+  const [maxPrice, setMaxPrice] = useState(0); // 0 means no price ceiling
   const [sortBy, setSortBy] = useState('price_asc');
 
   // Side-by-Side Comparison State (Up to 3 properties)
@@ -76,6 +75,8 @@ export default function Browse() {
     }
   };
 
+  const maxAvailablePrice = Math.max(1000, ...properties.map((property) => Number(property.pricePerNight || 0)));
+
   const handleToggleCompare = (property) => {
     if (comparedProperties.some((p) => p.id === property.id)) {
       setComparedProperties(comparedProperties.filter((p) => p.id !== property.id));
@@ -94,7 +95,7 @@ export default function Browse() {
   const filteredProperties = properties
     .filter((p) => {
       const price = parseFloat(p.pricePerNight || 0);
-      const matchesPrice = price <= maxPrice;
+      const matchesPrice = maxPrice === 0 || price <= maxPrice;
       const matchesType =
         selectedTypes.length === 0 || selectedTypes.includes(p.type);
       return matchesPrice && matchesType;
@@ -106,10 +107,10 @@ export default function Browse() {
     });
 
   return (
-    <div className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="market-browse">
+      <div className="market-browse-inner">
         {/* Header & Search Bar */}
-        <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="browse-heading">
           <div>
             <h1 className="text-2xl font-extrabold text-neutral-900">Explore Rental Stays in Kenya</h1>
             <p className="text-xs text-neutral-500">
@@ -123,17 +124,17 @@ export default function Browse() {
               placeholder="Search by neighborhood, city, or property name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-sm font-semibold text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="browse-search-input"
             />
-            <FaSearch className="absolute left-3.5 top-3.5 text-neutral-400 text-sm" />
+            <FaSearch className="browse-search-icon" />
           </div>
         </div>
 
         {/* Layout: Sidebar Filters + Property Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="browse-layout">
           {/* Sidebar Filters */}
-          <aside className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-6 rounded-3xl border border-neutral-200 shadow-sm space-y-6">
+          <aside className="browse-filters">
+            <div className="browse-filter-sheet">
               <div className="flex justify-between items-center pb-3 border-b border-neutral-100">
                 <h3 className="font-extrabold text-sm text-neutral-900 flex items-center gap-2">
                   <FaSlidersH className="text-amber-500" /> Filter Listings
@@ -141,7 +142,7 @@ export default function Browse() {
                 <button
                   onClick={() => {
                     setSelectedTypes([]);
-                    setMaxPrice(500000);
+                    setMaxPrice(0);
                     setSearch('');
                   }}
                   className="text-xs font-bold text-amber-600 hover:underline"
@@ -180,21 +181,21 @@ export default function Browse() {
                     Max Price / Night
                   </label>
                   <span className="text-xs font-black text-amber-600">
-                    {formatKES(maxPrice)}
+                    {maxPrice === 0 ? 'Any price' : formatKES(maxPrice)}
                   </span>
                 </div>
                 <input
                   type="range"
-                  min="1000"
-                  max="500000"
-                  step="500"
+                  min="0"
+                  max={maxAvailablePrice}
+                  step={Math.max(100, Math.round(maxAvailablePrice / 1000))}
                   value={maxPrice}
                   onChange={(e) => setMaxPrice(Number(e.target.value))}
                   className="w-full h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
                 />
                 <div className="flex justify-between text-[10px] text-neutral-400 mt-1 font-semibold">
-                  <span>KES 1,000</span>
-                  <span>KES 500,000+</span>
+                  <span>Any price</span>
+                  <span>{formatKES(maxAvailablePrice)}</span>
                 </div>
               </div>
 
@@ -216,12 +217,12 @@ export default function Browse() {
 
             {/* Comparison Floating Bar Widget */}
             {comparedProperties.length > 0 && (
-              <div className="bg-amber-500 text-white p-5 rounded-3xl shadow-lg space-y-3">
+            <div className="browse-compare-bar">
                 <div className="flex justify-between items-center">
                   <span className="font-extrabold text-xs tracking-wider uppercase flex items-center gap-1.5">
                     <FaExchangeAlt /> Side-by-Side Comparison
                   </span>
-                  <span className="bg-amber-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="browse-count">
                     {comparedProperties.length}/3
                   </span>
                 </div>
@@ -230,7 +231,7 @@ export default function Browse() {
                 </p>
                 <button
                   onClick={() => setIsCompareModalOpen(true)}
-                  className="w-full bg-white text-amber-800 font-extrabold text-xs py-2.5 rounded-xl shadow-md hover:bg-neutral-50 transition"
+                  className="browse-compare-button"
                 >
                   Compare Now
                 </button>
@@ -239,15 +240,15 @@ export default function Browse() {
           </aside>
 
           {/* Properties Grid */}
-          <main className="lg:col-span-3">
+          <main className="browse-results">
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="browse-skeleton-grid">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="h-80 bg-neutral-200 rounded-3xl animate-pulse" />
+                  <div key={i} className="browse-skeleton" />
                 ))}
               </div>
             ) : filteredProperties.length === 0 ? (
-              <div className="bg-white rounded-3xl p-12 text-center border border-neutral-200 shadow-sm">
+              <div className="browse-empty">
                 <h3 className="text-lg font-bold text-neutral-800">No properties found</h3>
                 <p className="text-xs text-neutral-500 mt-1 mb-6">
                   Try adjusting your price range, search query, or category filters.
@@ -255,43 +256,35 @@ export default function Browse() {
                 <button
                   onClick={() => {
                     setSelectedTypes([]);
-                    setMaxPrice(500000);
+                    setMaxPrice(0);
                     setSearch('');
                   }}
-                  className="bg-amber-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm"
+                  className="browse-clear-button"
                 >
                   Clear All Filters
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="browse-property-grid">
                 {filteredProperties.map((property) => {
                   const coverImg =
                     (Array.isArray(property.images)
                       ? property.images[0]
                       : typeof property.images === 'string'
                       ? property.images.split(',')[0]
-                      : null) || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800';
+                      : null) || null;
 
                   const saved = isSaved(property.id);
                   const isCompared = comparedProperties.some((p) => p.id === property.id);
 
                   return (
-                    <div
+                    <article
                       key={property.id}
-                      className="bg-white rounded-3xl overflow-hidden border border-neutral-200 shadow-sm hover:shadow-xl transition flex flex-col group"
+                      className="browse-property group"
                     >
-                      <div className="relative h-48 overflow-hidden">
-                        <img
-                          src={coverImg}
-                          alt={property.name}
-                          onError={(event) => {
-                            event.currentTarget.onerror = null;
-                            event.currentTarget.src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800';
-                          }}
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                        />
-                        <div className="absolute top-3 left-3 bg-neutral-900/70 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase">
+                      <div className="browse-property-photo">
+                        {coverImg ? <img src={coverImg} alt={property.name} onError={(event) => { event.currentTarget.hidden = true; }} className="browse-property-image" /> : <span className="browse-no-image">No property image</span>}
+                        <div className="browse-type-label">
                           {property.type?.replace('_', ' ')}
                         </div>
 
@@ -300,10 +293,11 @@ export default function Browse() {
                           <button
                             onClick={() => handleToggleCompare(property)}
                             title="Compare Property"
-                            className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center text-xs shadow-sm transition ${
+                            aria-label={isCompared ? 'Remove from comparison' : 'Compare property'}
+                            className={`browse-image-action ${
                               isCompared
-                                ? 'bg-amber-500 text-white'
-                                : 'bg-white/80 text-neutral-700 hover:bg-white'
+                                ? 'is-selected'
+                                : ''
                             }`}
                           >
                             <FaExchangeAlt size={12} />
@@ -312,42 +306,43 @@ export default function Browse() {
                           <button
                             onClick={() => toggleWishlist(property)}
                             title="Save to Wishlist"
-                            className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center text-rose-500 hover:bg-white shadow-sm transition"
+                            aria-label={saved ? 'Remove from saved stays' : 'Save this stay'}
+                            className={`browse-image-action browse-save-action ${saved ? 'is-saved' : ''}`}
                           >
                             {saved ? <FaHeart size={14} /> : <FaRegHeart size={14} />}
                           </button>
                         </div>
                       </div>
 
-                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                      <div className="browse-property-copy">
                         <div>
-                          <div className="flex items-center justify-between text-[11px] text-neutral-500 mb-1">
-                            <span className="flex items-center gap-1 font-medium truncate">
-                              <FaMapMarkerAlt className="text-amber-500" /> {property.city || property.address}
+                          <div className="browse-property-meta">
+                            <span className="browse-location">
+                              <FaMapMarkerAlt aria-hidden="true" /> {property.city || property.address || 'Kenya'}
                             </span>
-                            <span className="flex items-center gap-1 text-amber-600 font-bold">
-                              <FaStar size={10} /> {property.rating || '5.0'}
+                            <span className="browse-rating">
+                              {property.rating ? <><FaStar size={10} /> {property.rating}</> : <span className="browse-no-rating">No reviews</span>}
                             </span>
                           </div>
 
-                          <h3 className="font-extrabold text-sm text-neutral-900 line-clamp-1 group-hover:text-amber-600 transition">
+                          <h3 className="browse-property-title">
                             {property.name}
                           </h3>
                         </div>
 
-                        <div className="pt-2 border-t border-neutral-100 flex items-center justify-between">
+                        <div className="browse-property-footer">
                           <div>
                             <span className="text-base font-black text-neutral-900">{formatKES(property.pricePerNight)}</span>
                             <span className="text-[10px] text-neutral-400"> / night</span>
                             {(property.pricePerWeek || property.pricePerMonth) && (
                               <div className="flex flex-wrap gap-1.5 mt-1">
                                 {property.pricePerWeek && (
-                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                                    <span className="browse-rate-note">
                                     Week {formatKES(property.pricePerWeek)}
                                   </span>
                                 )}
                                 {property.pricePerMonth && (
-                                  <span className="text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded-full">
+                                    <span className="browse-rate-note">
                                     Month {formatKES(property.pricePerMonth)}
                                   </span>
                                 )}
@@ -357,13 +352,13 @@ export default function Browse() {
 
                           <Link
                             to={`/property/${property.id}`}
-                            className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition"
+                            className="browse-view-link"
                           >
                             View
                           </Link>
                         </div>
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
               </div>
@@ -374,8 +369,8 @@ export default function Browse() {
 
       {/* Side-by-Side Comparison Modal (Up to 3 properties) */}
       {isCompareModalOpen && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-5xl w-full p-6 sm:p-8 shadow-2xl border border-neutral-200 max-h-[90vh] overflow-y-auto">
+        <div className="browse-modal-backdrop">
+          <div className="browse-modal">
             <div className="flex justify-between items-center pb-4 border-b border-neutral-100 mb-6">
               <h3 className="text-lg font-extrabold text-neutral-900 flex items-center gap-2">
                 <FaExchangeAlt className="text-amber-500" /> Compare Accommodations
@@ -395,11 +390,11 @@ export default function Browse() {
                     ? p.images[0]
                     : typeof p.images === 'string'
                     ? p.images.split(',')[0]
-                    : null) || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800';
+                    : null) || null;
 
                 return (
                   <div key={p.id} className="border border-neutral-200 rounded-2xl p-4 space-y-4 bg-neutral-50/50">
-                    <img src={img} alt={p.name} className="w-full h-36 object-cover rounded-xl" />
+                    {img ? <img src={img} alt={p.name} className="w-full h-36 object-cover rounded-xl" /> : <div className="browse-no-image browse-compare-no-image">No property image</div>}
                     <h4 className="font-extrabold text-sm text-neutral-900">{p.name}</h4>
 
                     <div className="space-y-2 text-xs text-neutral-600 border-t border-neutral-200 pt-3">
@@ -417,7 +412,7 @@ export default function Browse() {
                       </div>
                       <div className="flex justify-between">
                         <span className="font-medium text-neutral-400">Capacity:</span>
-                        <span className="font-bold">{p.capacity || 2} Guests</span>
+                        <span className="font-bold">{p.capacity ? `${p.capacity} Guests` : 'Not provided'}</span>
                       </div>
                     </div>
 

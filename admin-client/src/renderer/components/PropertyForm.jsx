@@ -116,7 +116,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="e.g., Beachfront Apartment"
+                placeholder="Enter property name"
               />
               {errors.name && <span className="error">{errors.name}</span>}
             </div>
@@ -141,7 +141,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                placeholder="e.g., 123 Beach Street"
+                placeholder="Enter street address"
               />
               {errors.address && <span className="error">{errors.address}</span>}
             </div>
@@ -155,7 +155,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                placeholder="e.g., Nairobi"
+                placeholder="Enter city"
               />
               {errors.city && <span className="error">{errors.city}</span>}
             </div>
@@ -167,7 +167,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="country"
                 value={formData.country}
                 onChange={handleChange}
-                placeholder="e.g., Kenya"
+                placeholder="Enter country"
               />
             </div>
           </div>
@@ -180,7 +180,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="pricePerNight"
                 value={formData.pricePerNight}
                 onChange={handleChange}
-                placeholder="5500"
+                placeholder="Enter nightly rate"
                 step="50"
               />
               {errors.pricePerNight && <span className="error">{errors.pricePerNight}</span>}
@@ -193,7 +193,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="pricePerWeek"
                 value={formData.pricePerWeek}
                 onChange={handleChange}
-                placeholder="35000"
+                placeholder="Enter weekly rate"
                 step="100"
               />
             </div>
@@ -205,7 +205,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="pricePerMonth"
                 value={formData.pricePerMonth}
                 onChange={handleChange}
-                placeholder="110000"
+                placeholder="Enter monthly rate"
                 step="500"
               />
             </div>
@@ -219,7 +219,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="capacity"
                 value={formData.capacity}
                 onChange={handleChange}
-                placeholder="4"
+                placeholder="Enter guest capacity"
               />
               {errors.capacity && <span className="error">{errors.capacity}</span>}
             </div>
@@ -231,7 +231,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="bedrooms"
                 value={formData.bedrooms}
                 onChange={handleChange}
-                placeholder="2"
+                placeholder="Enter bedroom count"
               />
             </div>
 
@@ -242,7 +242,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="bathrooms"
                 value={formData.bathrooms}
                 onChange={handleChange}
-                placeholder="1"
+                placeholder="Enter bathroom count"
               />
             </div>
           </div>
@@ -253,7 +253,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
               name="description"
               value={formData.description}
               onChange={handleChange}
-              placeholder="Describe the property..."
+              placeholder="Enter property description"
               rows={4}
             ></textarea>
           </div>

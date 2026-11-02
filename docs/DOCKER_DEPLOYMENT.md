@@ -1,4 +1,4 @@
-# RMS Docker Deployment
+# CozyStay Docker Deployment
 
 This deployment runs the customer web application, backend API, and MySQL database together. The Electron admin/POS client remains a native desktop application and connects to the backend API exposed on the host.
 
@@ -14,6 +14,7 @@ From the repository root:
 
 ```text
 copy .env.docker.example .env
+# Set unique MySQL passwords and separate JWT secrets in .env before continuing.
 docker compose up -d --build
 ```
 
@@ -31,15 +32,15 @@ http://localhost:3000/health
 
 The backend waits for MySQL to become healthy before running the database migration and starting the API. MySQL data is stored in the named `rms_mysql_data` volume and survives container recreation.
 
-## Optional seed data
+## Database initialization
 
-After the stack is running, seed the database only when installing a new demo environment:
+The backend migration creates the schema and preserves existing rows. The optional seed command inserts no sample business records. To create the first administrator, set `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`, `INITIAL_ADMIN_FIRST_NAME`, and `INITIAL_ADMIN_LAST_NAME` in `.env` before running the seed command:
 
 ```text
 docker compose exec backend node src/database/seed.js
 ```
 
-Do not run the seed command on a production database unless the seed script's upsert behavior has been reviewed for that environment.
+No default staff or customer accounts are created. Configure unique database and JWT secrets in `.env` before starting the Compose stack.
 
 ## Admin/POS desktop client
 
@@ -56,6 +57,8 @@ If the Electron client runs on another PC, replace `localhost` with the Docker h
 ```text
 VITE_API_URL=http://192.168.1.50:3000/api
 ```
+
+The Windows POS client reads the shared branding color from the same backend. When it runs on a different PC, set `RMS_API_URL` to the host API, for example `http://192.168.1.50:3000/api`.
 
 ## Moving to another PC
 

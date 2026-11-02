@@ -8,16 +8,16 @@ export default {
     extend: {
       colors: {
         primary: {
-          50: '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          300: '#fcd34d',
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706',
-          700: '#b45309',
-          800: '#92400e',
-          900: '#78350f',
+          50: 'var(--primary-50, #edf5f1)',
+          100: 'var(--primary-100, #d9eae2)',
+          200: 'var(--primary-200, #b5d5c5)',
+          300: 'var(--primary-300, #87bca4)',
+          400: 'var(--primary-400, #529a7a)',
+          500: 'var(--primary-500, #176b52)',
+          600: 'var(--primary-600, #145a46)',
+          700: 'var(--primary-700, #104b3a)',
+          800: 'var(--primary-800, #0b3c2e)',
+          900: 'var(--primary-900, #082f24)',
         },
         neutral: {
           50: '#fafafa',

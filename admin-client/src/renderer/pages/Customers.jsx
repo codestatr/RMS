@@ -24,13 +24,8 @@ export default function Customers() {
       });
       const all = res.data?.data?.data || [];
       setCustomers(all.filter((u) => u.role === 'customer'));
-    } catch (e) {
-      // Local demo fallback
-      setCustomers([
-        { id: 'c1', firstName: 'David', lastName: 'Kamau', email: 'customer@rms.com', phone: '+254744000444', status: 'active', city: 'Nairobi', createdAt: '2026-08-15' },
-        { id: 'c2', firstName: 'John', lastName: 'Doe', email: 'john.doe@gmail.com', phone: '+254755000555', status: 'active', city: 'Mombasa', createdAt: '2026-08-20' },
-        { id: 'c3', firstName: 'Sarah', lastName: 'Njeri', email: 'sarah.n@yahoo.com', phone: '+254766000666', status: 'active', city: 'Kisumu', createdAt: '2026-08-25' },
-      ]);
+    } catch {
+      setCustomers([]);
     } finally {
       setLoading(false);
     }

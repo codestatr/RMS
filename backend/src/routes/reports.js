@@ -3,6 +3,7 @@ import PdfService from '../services/PdfService.js'
 import ReportService from '../services/ReportService.js'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { asyncHandler, ValidationError } from '../utils/errors.js'
+import { getSystemBranding } from '../services/BrandingService.js'
 
 const router = express.Router()
 
@@ -158,9 +159,9 @@ router.get(
   authenticate,
   requireRole('admin'),
   asyncHandler(async (req, res) => {
-    const { limit = 10, month } = req.query
+    const { limit = 10, month, startDate, endDate } = req.query
 
-    const result = await ReportService.getTopPropertiesByRevenue(limit, month)
+    const result = await ReportService.getTopPropertiesByRevenue(limit, month, startDate, endDate)
 
     res.json({
       success: true,
@@ -210,22 +211,28 @@ router.post(
         ReportService.getPaymentBreakdown(startDate, endDate),
         ReportService.getTopPropertiesByRevenue(10),
       ])
+      const branding = await getSystemBranding()
       const pdfBuffer = await PdfService.generateReportPdf({
         kpis,
         paymentBreakdown,
         topProperties,
-        businessName: req.body.branding?.name || process.env.BUSINESS_NAME,
-        logo: req.body.branding?.logo,
+        reportType,
+        startDate,
+        endDate,
+        businessName: branding.brandName,
+        brandColor: branding.brandColor,
+        logo: branding.logo,
       })
       res.setHeader('Content-Type', 'application/pdf')
-      res.setHeader('Content-Disposition', `attachment; filename=RMS-${reportType}-report.pdf`)
+      const safeBrandName = branding.brandName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '')
+      res.setHeader('Content-Disposition', `attachment; filename=${safeBrandName}-${reportType}-report.pdf`)
       return res.send(pdfBuffer)
     }
 
     if (format === 'json' && reportType === 'backup') {
       const data = await ReportService.exportDatabase()
       res.setHeader('Content-Type', 'application/json')
-      res.setHeader('Content-Disposition', 'attachment; filename=rms-backup.json')
+      res.setHeader('Content-Disposition', 'attachment; filename=CozyStay-backup.json')
       return res.send(JSON.stringify(data, null, 2))
     }
 
