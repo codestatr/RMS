@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import PropertyService from '../services/PropertyService.js'
 import { query } from '../database/db.js'
 import { authenticate, requireRole, optionalAuthenticate } from '../middleware/auth.js'
+import { uploadPropertyImage } from '../middleware/propertyImageUpload.js'
 import { asyncHandler, ValidationError } from '../utils/errors.js'
 
 const router = express.Router()
@@ -173,18 +174,20 @@ router.patch(
 router.post(
   '/:id/images',
   authenticate,
+  uploadPropertyImage,
   asyncHandler(async (req, res) => {
-    const { imageUrl, isCover, displayOrder } = req.body
+    const imageUrl = req.file?.path || req.body.imageUrl
+    const { isCover, displayOrder } = req.body
 
     if (!imageUrl) {
-      throw new ValidationError('imageUrl is required')
+      throw new ValidationError('An image file (field "image") or imageUrl is required')
     }
 
     const result = await PropertyService.addImage(
       req.params.id,
       imageUrl,
-      isCover || false,
-      displayOrder || 0
+      isCover === true || isCover === 'true',
+      Number(displayOrder) || 0
     )
 
     res.status(201).json({

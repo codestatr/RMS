@@ -172,6 +172,8 @@ The example values are configured for common local development defaults:
 
 The website can initiate M-Pesa payments against Safaricom's sandbox by setting `MPESA_ENVIRONMENT=sandbox` in `backend/.env` and filling in the Daraja sandbox credentials. Safaricom must be able to reach the callback, so `MPESA_CALLBACK_URL` needs a public HTTPS tunnel pointing to `http://localhost:3000/api/payments/webhook/mpesa`; a plain `localhost` callback will not work. Keep production credentials out of local development.
 
+Property images can be uploaded through `POST /api/properties/:id/images` as multipart form data using the file field `image`. Configure `CLOUDINARY_NAME`, `CLOUDINARY_KEY`, and `CLOUDINARY_SECRET` in `backend/.env`; uploads accept JPG, PNG, and WebP files up to 4 MB and are stored in the `rms_uploads` Cloudinary folder. Include the bearer token as with other authenticated API routes. Optional fields are `isCover` (`true` or `false`) and `displayOrder`. Existing JSON requests with an `imageUrl` remain supported.
+
 ### 4. Set up the database
 
 Create the database from a terminal, then import the schema:
