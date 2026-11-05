@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS properties (
   id VARCHAR(36) PRIMARY KEY,
   owner_id VARCHAR(36) NOT NULL,
   name VARCHAR(255) NOT NULL,
-  type ENUM('one_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb') NOT NULL,
+  type ENUM('one_bedroom', 'two_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb') NOT NULL,
   description LONGTEXT,
   address VARCHAR(500) NOT NULL,
   city VARCHAR(100) NOT NULL,

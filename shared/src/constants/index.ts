@@ -1,5 +1,6 @@
 export const PROPERTY_TYPES = [
   { value: 'one_bedroom', label: 'One Bedroom' },
+  { value: 'two_bedroom', label: 'Two Bedroom' },
   { value: 'airbnb', label: 'Airbnb / Vacation Home' },
   { value: 'single_room', label: 'Single Room' },
   { value: 'bedsitter', label: 'Bedsitter / Studio' },

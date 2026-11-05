@@ -44,12 +44,19 @@ export default function Browse() {
     async function fetchProperties() {
       setLoading(true);
       try {
-        const res = await propertyService.getAll({
+        const filters = {
           search: search || undefined,
           type: selectedTypes.length === 1 ? selectedTypes[0] : undefined,
-          limit: 30,
-        });
-        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res?.data?.data) ? res.data.data : [];
+          limit: 100,
+        };
+        const firstPage = await propertyService.getAll({ ...filters, page: 1 });
+        const pages = Number(firstPage?.pagination?.pages) || 1;
+        const otherPages = await Promise.all(
+          Array.from({ length: Math.max(0, pages - 1) }, (_, index) =>
+            propertyService.getAll({ ...filters, page: index + 2 })
+          )
+        );
+        const list = [firstPage, ...otherPages].flatMap((response) => Array.isArray(response?.data) ? response.data : []);
         setProperties(list);
       } catch (err) {
         console.error('Failed to load listings:', err);
@@ -62,6 +69,7 @@ export default function Browse() {
 
   const propertyTypes = [
     { value: 'one_bedroom', label: 'One Bedroom' },
+    { value: 'two_bedroom', label: 'Two Bedroom' },
     { value: 'airbnb', label: 'Airbnb & Villa' },
     { value: 'single_room', label: 'Single Room' },
     { value: 'bedsitter', label: 'Bedsitter Studio' },

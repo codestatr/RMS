@@ -19,7 +19,7 @@ export interface User {
   updatedAt: string;
 }
 
-export type PropertyType = 'one_bedroom' | 'airbnb' | 'single_room' | 'bedsitter' | 'bnb';
+export type PropertyType = 'one_bedroom' | 'two_bedroom' | 'airbnb' | 'single_room' | 'bedsitter' | 'bnb';
 export type PropertyStatus = 'available' | 'booked' | 'maintenance' | 'inactive';
 
 export interface Amenity {

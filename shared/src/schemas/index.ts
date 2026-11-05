@@ -15,7 +15,7 @@ export const registerSchema = z.object({
 
 export const propertyCreateSchema = z.object({
   name: z.string().min(3, 'Property name is required'),
-  type: z.enum(['one_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb']),
+  type: z.enum(['one_bedroom', 'two_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb']),
   description: z.string().optional(),
   address: z.string().min(3, 'Address is required'),
   city: z.string().min(2, 'City is required'),

@@ -299,7 +299,7 @@ function PropertyEditor({ property, saving, onChange, onCancel, onSave }) {
       <div><h3 id="property-editor-title" className="text-xl font-extrabold">{property.id ? 'Edit property listing' : 'Add a property listing'}</h3><p className="mt-1 text-sm text-neutral-500">Set the listing details, nightly rate, and guest capacity.</p></div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Property name" required value={property.name} onChange={(value) => update('name', value)} />
-        <label className="form-field"><span className="form-label">Property type</span><select required value={property.type} onChange={(event) => update('type', event.target.value)} className="form-input">{[['airbnb','Airbnb'],['one_bedroom','One bedroom'],['single_room','Single room'],['bedsitter','Bedsitter'],['bnb','Bed & breakfast']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="form-field"><span className="form-label">Property type</span><select required value={property.type} onChange={(event) => update('type', event.target.value)} className="form-input">{[['airbnb','Airbnb'],['one_bedroom','One bedroom'],['two_bedroom','Two bedroom'],['single_room','Single room'],['bedsitter','Bedsitter'],['bnb','Bed & breakfast']].map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <Field label="Street address" required value={property.address} onChange={(value) => update('address', value)} />
         <Field label="City" required value={property.city} onChange={(value) => update('city', value)} />
         <Field label="Country" value={property.country} onChange={(value) => update('country', value)} />

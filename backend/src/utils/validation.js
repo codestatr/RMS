@@ -34,7 +34,7 @@ export function validateDecimal(value, maxDigits = 10, maxDecimals = 2) {
 }
 
 export function validatePropertyType(type) {
-  const validTypes = ['one_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb']
+  const validTypes = ['one_bedroom', 'two_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb']
   return validTypes.includes(type)
 }
 

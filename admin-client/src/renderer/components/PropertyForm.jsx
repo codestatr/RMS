@@ -31,6 +31,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
 
   const propertyTypes = [
     'one_bedroom',
+    'two_bedroom',
     'airbnb',
     'single_room',
     'bedsitter',

@@ -46,6 +46,15 @@ async function runMigration() {
     console.log('Added owner, housekeeping, and catering staff roles.');
   }
 
+  const [propertyTypeColumn] = await connection.query(
+    `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'properties' AND COLUMN_NAME = 'type'`, [dbName]
+  );
+  if (propertyTypeColumn[0] && !propertyTypeColumn[0].COLUMN_TYPE.includes("'two_bedroom'")) {
+    await connection.query("ALTER TABLE properties MODIFY COLUMN type ENUM('one_bedroom', 'two_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb') NOT NULL");
+    console.log('Added two-bedroom property listings.');
+  }
+
   const [serviceTypeColumn] = await connection.query(
     `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'guest_service_requests' AND COLUMN_NAME = 'service_type'`, [dbName]

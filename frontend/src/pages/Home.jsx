@@ -71,6 +71,7 @@ export default function Home() {
 
   const categories = [
     { type: 'one_bedroom', label: 'One bedroom' },
+    { type: 'two_bedroom', label: 'Two bedroom' },
     { type: 'airbnb', label: 'Villas & holiday homes' },
     { type: 'single_room', label: 'Single rooms' },
     { type: 'bedsitter', label: 'Bedsitters & studios' },

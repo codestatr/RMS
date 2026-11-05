@@ -15,6 +15,7 @@ class PropertyService {
     const images = {
       airbnb: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200',
       one_bedroom: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200',
+      two_bedroom: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1200',
       single_room: 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=1200',
       bedsitter: 'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=1200',
       bnb: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200',

@@ -30,6 +30,14 @@ export async function initializeDatabase() {
     await pool.query("ALTER TABLE users MODIFY COLUMN role ENUM('customer', 'admin', 'cashier', 'property_owner', 'housekeeping', 'catering') NOT NULL DEFAULT 'customer'")
   }
 
+  const [propertyTypeColumn] = await pool.query(
+    `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'properties' AND COLUMN_NAME = 'type'`
+  )
+  if (propertyTypeColumn[0] && !propertyTypeColumn[0].COLUMN_TYPE.includes("'two_bedroom'")) {
+    await pool.query("ALTER TABLE properties MODIFY COLUMN type ENUM('one_bedroom', 'two_bedroom', 'airbnb', 'single_room', 'bedsitter', 'bnb') NOT NULL")
+  }
+
   // Prevent silent crashes when idle connections are closed by MySQL
   pool.on('connection', (connection) => {
     connection.on('error', (err) => {
