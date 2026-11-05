@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { FiX, FiUpload } from 'react-icons/fi'
 import '../../styles/property-form.css'
+import { optimizePropertyImage } from '../utils/propertyImages'
 
 /**
  * Property Form Component
@@ -23,6 +24,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
       description: '',
       status: 'available',
       imageUrl: '',
+      images: [],
     }
   )
   const [errors, setErrors] = useState({})
@@ -50,18 +52,33 @@ export default function PropertyForm({ property, onSave, onCancel }) {
     }
   }
 
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setErrors((prev) => ({ ...prev, imageUrl: 'Please select an image file' }))
+  const handleImageChange = async (event) => {
+    const files = [...(event.target.files || [])]
+    event.target.value = ''
+    if (!files.length) return
+    if ((formData.images?.length || 0) + files.length > 8) {
+      setErrors((prev) => ({ ...prev, imageUrl: 'A property can have up to 8 photos.' }))
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => setFormData((prev) => ({ ...prev, imageUrl: reader.result }))
-    reader.readAsDataURL(file)
-    setErrors((prev) => ({ ...prev, imageUrl: '' }))
+    try {
+      const uploadedImages = await Promise.all(files.map(optimizePropertyImage))
+      if ([...(formData.images || []), ...uploadedImages].reduce((total, image) => total + image.length, 0) > 8_000_000) {
+        throw new Error('Combined photo upload is too large. Remove a photo or choose smaller files.')
+      }
+      setFormData((prev) => {
+        const images = [...(prev.images || []), ...uploadedImages]
+        return { ...prev, images, imageUrl: images[0] || '' }
+      })
+      setErrors((prev) => ({ ...prev, imageUrl: '' }))
+    } catch (error) {
+      setErrors((prev) => ({ ...prev, imageUrl: error.message || 'Unable to process photos.' }))
+    }
   }
+
+  const removeImage = (index) => setFormData((current) => {
+    const images = (current.images || []).filter((_image, imageIndex) => imageIndex !== index)
+    return { ...current, images, imageUrl: images[0] || '' }
+  })
 
   const validateForm = () => {
     const newErrors = {}
@@ -116,7 +133,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Enter property name"
+                placeholder="e.g., Beachfront Apartment"
               />
               {errors.name && <span className="error">{errors.name}</span>}
             </div>
@@ -141,7 +158,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="address"
                 value={formData.address}
                 onChange={handleChange}
-                placeholder="Enter street address"
+                placeholder="e.g., 123 Beach Street"
               />
               {errors.address && <span className="error">{errors.address}</span>}
             </div>
@@ -155,7 +172,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="city"
                 value={formData.city}
                 onChange={handleChange}
-                placeholder="Enter city"
+                placeholder="e.g., Nairobi"
               />
               {errors.city && <span className="error">{errors.city}</span>}
             </div>
@@ -167,7 +184,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="country"
                 value={formData.country}
                 onChange={handleChange}
-                placeholder="Enter country"
+                placeholder="e.g., Kenya"
               />
             </div>
           </div>
@@ -180,7 +197,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="pricePerNight"
                 value={formData.pricePerNight}
                 onChange={handleChange}
-                placeholder="Enter nightly rate"
+                placeholder="5500"
                 step="50"
               />
               {errors.pricePerNight && <span className="error">{errors.pricePerNight}</span>}
@@ -193,7 +210,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="pricePerWeek"
                 value={formData.pricePerWeek}
                 onChange={handleChange}
-                placeholder="Enter weekly rate"
+                placeholder="35000"
                 step="100"
               />
             </div>
@@ -205,7 +222,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="pricePerMonth"
                 value={formData.pricePerMonth}
                 onChange={handleChange}
-                placeholder="Enter monthly rate"
+                placeholder="110000"
                 step="500"
               />
             </div>
@@ -219,7 +236,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="capacity"
                 value={formData.capacity}
                 onChange={handleChange}
-                placeholder="Enter guest capacity"
+                placeholder="4"
               />
               {errors.capacity && <span className="error">{errors.capacity}</span>}
             </div>
@@ -231,7 +248,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="bedrooms"
                 value={formData.bedrooms}
                 onChange={handleChange}
-                placeholder="Enter bedroom count"
+                placeholder="2"
               />
             </div>
 
@@ -242,7 +259,7 @@ export default function PropertyForm({ property, onSave, onCancel }) {
                 name="bathrooms"
                 value={formData.bathrooms}
                 onChange={handleChange}
-                placeholder="Enter bathroom count"
+                placeholder="1"
               />
             </div>
           </div>
@@ -253,21 +270,19 @@ export default function PropertyForm({ property, onSave, onCancel }) {
               name="description"
               value={formData.description}
               onChange={handleChange}
-              placeholder="Enter property description"
+              placeholder="Describe the property..."
               rows={4}
             ></textarea>
           </div>
 
           <div className="form-group">
-            <label>Property Image</label>
+            <label>Property photos <span>(up to 8; first photo is the cover)</span></label>
             <label className="image-upload-button">
               <FiUpload size={17} />
-              Choose image
-              <input type="file" accept="image/*" onChange={handleImageChange} hidden />
+              Add photos
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={handleImageChange} hidden />
             </label>
-            {formData.imageUrl && (
-              <img className="property-image-preview" src={formData.imageUrl} alt="Property preview" />
-            )}
+            {formData.images?.length > 0 && <div className="property-image-gallery-preview">{formData.images.map((image, index) => <div className="property-image-preview-item" key={`${index}-${image.slice(0, 30)}`}><img className="property-image-preview" src={image} alt={`Property photo ${index + 1}`} /><button type="button" onClick={() => removeImage(index)} aria-label={`Remove photo ${index + 1}`}>Remove</button>{index === 0 && <span>Cover</span>}</div>)}</div>}
             {errors.imageUrl && <span className="error">{errors.imageUrl}</span>}
           </div>
 

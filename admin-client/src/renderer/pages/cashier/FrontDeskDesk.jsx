@@ -155,7 +155,7 @@ export default function FrontDeskDesk() {
                     </td>
                     <td>
                       <div className="flex items-center gap-1.5">
-                        {['pending', 'confirmed'].includes(b.status) && (
+                        {b.status === 'confirmed' && (
                           <button
                             onClick={() => handleUpdateStatus(b.id, 'checked_in')}
                             className="bg-sky-600 hover:bg-sky-700 text-white font-bold text-[11px] px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-sm transition"

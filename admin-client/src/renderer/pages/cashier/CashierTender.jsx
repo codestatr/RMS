@@ -138,6 +138,8 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
             checkInDate: bookingData.checkInDate,
             checkOutDate: bookingData.checkOutDate,
             numberOfGuests: bookingData.guestCount,
+            guestName: bookingData.guestName,
+            guestPhone: bookingData.guestPhone,
             totalAmount: bookingData.totalBeforeDiscount || bookingData.totalAmount,
             discountAmount: bookingData.discountAmount || 0,
             specialRequests: bookingData.specialRequests,

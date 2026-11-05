@@ -2,23 +2,24 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
  * useIdleTimer Hook
- * Tracks user activity and triggers auto-logout after idle threshold (default: 4 minutes = 240,000ms).
+ * Tracks user activity and triggers auto-logout after the configured idle threshold.
  * Displays a warning countdown 30 seconds before logout with an option to extend session.
  *
  * @param {Object} options
- * @param {number} options.timeout - Total idle timeout in milliseconds (default: 240,000 = 4 mins)
+ * @param {number} options.timeout - Total idle timeout in milliseconds (default: 300,000 = 5 mins)
  * @param {number} options.warningTime - Time in ms before timeout to show warning (default: 30,000 = 30s)
  * @param {Function} options.onTimeout - Callback executed when timeout occurs
  * @param {boolean} options.enabled - Whether idle tracking is currently enabled
  */
 export function useIdleTimer({
-  timeout = 4 * 60 * 1000, // 4 minutes
+  timeout = 5 * 60 * 1000, // 5 minutes
   warningTime = 30 * 1000, // 30 seconds warning
   onTimeout,
   enabled = true,
 }) {
   const [isWarning, setIsWarning] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(Math.round(warningTime / 1000));
+  const isWarningRef = useRef(false);
   
   const lastActivityRef = useRef(Date.now());
   const warningTimerRef = useRef(null);
@@ -27,6 +28,7 @@ export function useIdleTimer({
 
   const resetTimer = useCallback(() => {
     lastActivityRef.current = Date.now();
+    isWarningRef.current = false;
     setIsWarning(false);
     setRemainingSeconds(Math.round(warningTime / 1000));
 
@@ -39,6 +41,7 @@ export function useIdleTimer({
     // Warning timer fires at (timeout - warningTime)
     const timeUntilWarning = Math.max(0, timeout - warningTime);
     warningTimerRef.current = setTimeout(() => {
+      isWarningRef.current = true;
       setIsWarning(true);
       const startCountdown = Math.round(warningTime / 1000);
       setRemainingSeconds(startCountdown);
@@ -57,6 +60,7 @@ export function useIdleTimer({
     // Final logout timer fires at timeout
     logoutTimerRef.current = setTimeout(() => {
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      isWarningRef.current = false;
       setIsWarning(false);
       if (typeof onTimeout === 'function') {
         onTimeout();
@@ -69,6 +73,7 @@ export function useIdleTimer({
       if (warningTimerRef.current) clearTimeout(warningTimerRef.current);
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      isWarningRef.current = false;
       setIsWarning(false);
       return;
     }
@@ -78,7 +83,7 @@ export function useIdleTimer({
     // Throttle activity reset to avoid high CPU on frequent mouse moves
     let throttleTimer = null;
     const handleActivity = () => {
-      if (isWarning) {
+      if (isWarningRef.current) {
         // While warning modal is active, require deliberate action like clicking "Stay Logged In"
         return;
       }
@@ -100,7 +105,7 @@ export function useIdleTimer({
       if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
       if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     };
-  }, [enabled, resetTimer, isWarning]);
+  }, [enabled, resetTimer]);
 
   return {
     isWarning,

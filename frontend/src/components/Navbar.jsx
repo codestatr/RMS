@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaBars, FaHeart, FaTimes, FaUser } from 'react-icons/fa';
 import { useAuthStore } from '../store/authStore';
 import { useWishlistStore } from '../store/wishlistStore';
+import { useBranding } from '../contexts/BrandingContext';
 import '../styles/marketplace.css';
 
 export default function Navbar() {
@@ -10,6 +11,7 @@ export default function Navbar() {
   const [userDropdown, setUserDropdown] = useState(false);
   const { user, isAuthenticated, logout } = useAuthStore();
   const { savedProperties, fetchWishlist } = useWishlistStore();
+  const branding = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -22,7 +24,7 @@ export default function Navbar() {
   return (
     <header className="market-nav-shell">
       <div className="market-nav">
-        <Link to="/" className="market-wordmark" aria-label="CozyStay home"><img src="/rms-logo.svg" alt="" /><span>CozyStay<small>FIND YOUR PLACE</small></span></Link>
+        <Link to="/" className="market-wordmark" aria-label={`${branding.brandName} home`}><img src={branding.logo || '/rms-logo.svg'} alt="" /><span>{branding.brandName}<small>FIND YOUR PLACE</small></span></Link>
         <nav className="market-nav-links" aria-label="Main navigation">
           <Link className={active('/') ? 'is-active' : ''} to="/">Home</Link>
           <Link className={active('/browse') ? 'is-active' : ''} to="/browse">Find a stay</Link>
@@ -45,12 +47,12 @@ export default function Navbar() {
         </div>
         <button className="market-menu-toggle" type="button" aria-label={isOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={isOpen} onClick={() => setIsOpen(!isOpen)}>{isOpen ? <FaTimes /> : <FaBars />}</button>
       </div>
-      <div className="market-announcement" aria-label="CozyStay announcements">
-        <p className="market-announcement-accessible">Find your next stay with CozyStay. Browse trusted homes and book your stay with ease.</p>
+      <div className="market-announcement" aria-label={`${branding.brandName} announcements`}>
+        <p className="market-announcement-accessible">Find your next stay with {branding.brandName}. Browse trusted homes and book your stay with ease.</p>
         <div className="market-announcement-window" aria-hidden="true">
           <div className="market-announcement-track">
             {[0, 1].map((copy) => <span className="market-announcement-group" key={copy}>
-              <span>Find your next stay with CozyStay</span><i>✦</i>
+              <span>Find your next stay with {branding.brandName}</span><i>✦</i>
               <span>Browse trusted homes and holiday stays</span><i>✦</i>
               <span>Your next place is just a search away</span><i>✦</i>
             </span>)}

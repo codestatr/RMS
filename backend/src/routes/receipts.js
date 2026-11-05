@@ -83,7 +83,11 @@ router.get(
   requireRole('admin', 'cashier'),
   asyncHandler(async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
-    const result = await ReceiptService.getAllReceipts(parseInt(page), parseInt(limit));
+    const result = await ReceiptService.getAllReceipts(
+      parseInt(page),
+      parseInt(limit),
+      req.user.role === 'cashier' ? req.user.id : null
+    );
 
     res.json({
       success: true,

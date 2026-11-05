@@ -1,0 +1,130 @@
+/* One calm, consistent button system for every cashier/POS workflow. */
+.pos-page button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid var(--cozystay-line, #d9e1db);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--cozystay-ink, #243229);
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.pos-page button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--cozystay-accent, #176b52) 42%, white);
+  background: color-mix(in srgb, var(--cozystay-accent, #176b52) 6%, white);
+  color: var(--cozystay-accent, #176b52);
+}
+
+.pos-page button:active:not(:disabled) { transform: translateY(1px); }
+.pos-page button:focus-visible { outline: 3px solid color-mix(in srgb, var(--cozystay-accent, #176b52) 24%, transparent); outline-offset: 2px; }
+.pos-page button:disabled { cursor: not-allowed; opacity: .58; }
+
+/* Primary actions */
+.pos-page .pos-submit-button,
+.pos-page .shift-button.amber,
+.pos-page .receipt-pdf-button,
+.pos-page button.bg-emerald-600,
+.pos-page button.bg-sky-600,
+.pos-page button.bg-amber-600 {
+  border-color: var(--cozystay-accent, #176b52);
+  background: var(--cozystay-accent, #176b52);
+  color: var(--brand-contrast, #fff);
+}
+
+.pos-page .pos-submit-button:hover:not(:disabled),
+.pos-page .shift-button.amber:hover:not(:disabled),
+.pos-page .receipt-pdf-button:hover:not(:disabled),
+.pos-page button.bg-emerald-600:hover:not(:disabled),
+.pos-page button.bg-sky-600:hover:not(:disabled),
+.pos-page button.bg-amber-600:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--cozystay-accent, #176b52) 86%, black);
+  background: color-mix(in srgb, var(--cozystay-accent, #176b52) 86%, black);
+  color: var(--brand-contrast, #fff);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--cozystay-accent, #176b52) 18%, transparent);
+}
+
+.pos-page .pos-submit-button:disabled { background: #d9dfda; border-color: #d9dfda; color: #738078; box-shadow: none; }
+
+/* Secondary and navigation actions */
+.pos-page .pos-tab {
+  min-height: 40px;
+  padding: 9px 12px;
+  border-color: transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #58665d;
+  font-size: .73rem;
+  font-weight: 700;
+}
+
+.pos-page .pos-tab:hover:not(:disabled) { border-color: var(--cozystay-line, #d9e1db); background: #fff; color: var(--cozystay-ink, #243229); }
+.pos-page .pos-tab.bg-amber-500 { border-color: var(--cozystay-accent, #176b52); background: var(--cozystay-accent, #176b52); color: var(--brand-contrast, #fff); box-shadow: none; }
+.pos-page .pos-tab.bg-amber-500:hover:not(:disabled) { background: color-mix(in srgb, var(--cozystay-accent, #176b52) 86%, black); color: var(--brand-contrast, #fff); }
+
+.pos-page .pos-admin-switch,
+.pos-page .shift-button.dark,
+.pos-page .receipt-print-button,
+.pos-page button.bg-neutral-800 {
+  border-color: #34443a;
+  background: #34443a;
+  color: #fff;
+}
+
+.pos-page .pos-admin-switch:hover:not(:disabled),
+.pos-page .shift-button.dark:hover:not(:disabled),
+.pos-page .receipt-print-button:hover:not(:disabled),
+.pos-page button.bg-neutral-800:hover:not(:disabled) { border-color: #26342b; background: #26342b; color: #fff; }
+
+.pos-page .pos-back-button,
+.pos-page .quick-value-button,
+.pos-page .float-preset,
+.pos-page .transaction-reprint,
+.pos-page .receipt-close-button {
+  border-color: var(--cozystay-line, #d9e1db);
+  background: #fff;
+  color: #48574e;
+}
+
+.pos-page .pos-back-button:hover:not(:disabled),
+.pos-page .quick-value-button:hover:not(:disabled),
+.pos-page .float-preset:hover:not(:disabled),
+.pos-page .transaction-reprint:hover:not(:disabled),
+.pos-page .receipt-close-button:hover:not(:disabled) { border-color: var(--cozystay-accent, #176b52); background: #f5f8f5; color: var(--cozystay-accent, #176b52); }
+
+.pos-page .pos-signout { border-color: #ead4d0; background: #fff; color: #9b3c33; }
+.pos-page .pos-signout:hover:not(:disabled) { border-color: #d8b2ac; background: #fcf4f2; color: #87332c; }
+.pos-page .shift-button.danger { border-color: #b9443a; background: #b9443a; color: #fff; }
+.pos-page .shift-button.danger:hover:not(:disabled) { border-color: #9e352e; background: #9e352e; color: #fff; }
+
+/* Payment methods retain their familiar cues while sharing the same finish. */
+.pos-page .payment-method-tab { min-height: 76px; border: 1px solid var(--cozystay-line, #d9e1db); border-radius: 11px; background: #fff; color: #526158; }
+.pos-page .payment-method-tab:hover:not(:disabled) { border-color: #b8c8bc; background: #f8faf8; color: var(--cozystay-ink, #243229); }
+.pos-page .payment-method-tab.cash.border-amber-500 { border: 2px solid var(--cozystay-accent, #176b52); background: color-mix(in srgb, var(--cozystay-accent, #176b52) 8%, white); color: var(--cozystay-accent, #176b52); }
+.pos-page .payment-method-tab.mpesa.border-emerald-500 { border: 2px solid #13805c; background: #eff9f4; color: #116747; }
+.pos-page .payment-method-tab.card.border-sky-500 { border: 2px solid #31739b; background: #f0f7fb; color: #285d7c; }
+
+.pos-page .quick-value-button { min-height: 36px; padding: 8px 11px; }
+.pos-page .float-preset { min-height: 34px; padding: 7px 11px; }
+.pos-page .transaction-reprint { min-height: 34px; padding: 7px 11px; }
+.pos-page .receipt-modal-close { width: 36px; min-width: 36px; min-height: 36px; padding: 0; border-color: transparent; border-radius: 8px; background: #f3f6f3; color: #617067; }
+.pos-page .receipt-modal-close:hover:not(:disabled) { border-color: var(--cozystay-line, #d9e1db); background: #e9efea; color: var(--cozystay-ink, #243229); }
+
+.pos-page .shift-button.full { width: 100%; }
+.pos-page .receipt-modal-actions { flex-wrap: wrap; }
+.pos-page .receipt-modal-actions > button { flex: 1 1 120px; }
+
+@media (max-width: 720px) {
+  .pos-page .pos-tab { flex: 0 0 auto; }
+  .pos-page .pos-toolbar { align-items: stretch; }
+  .pos-page .receipt-modal-actions > button { flex-basis: 100%; }
+}

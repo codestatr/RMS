@@ -2,6 +2,112 @@ import { query } from '../database/db.js'
 import { ValidationError, NotFoundError } from '../utils/errors.js'
 
 class ReportService {
+  async getOperationsSnapshot(user) {
+    const ownerScoped = user.role === 'property_owner'
+    const propertyFilter = ownerScoped ? ' AND p.owner_id = ?' : ''
+    const propertyParams = ownerScoped ? [user.id] : []
+
+    const balanceQuery = user.role === 'cashier'
+      ? Promise.resolve([])
+      : query(
+        `SELECT b.id, b.total_amount, p.name AS property_name, u.first_name, u.last_name,
+                GREATEST(b.total_amount - COALESCE(SUM(CASE WHEN pay.status = 'paid' THEN pay.amount ELSE 0 END), 0), 0) AS balance
+         FROM bookings b JOIN properties p ON p.id = b.property_id
+         JOIN users u ON u.id = b.customer_id
+         LEFT JOIN payments pay ON pay.booking_id = b.id
+         WHERE b.status IN ('pending', 'confirmed', 'checked_in')${propertyFilter}
+         GROUP BY b.id, b.total_amount, p.name, u.first_name, u.last_name
+         HAVING balance > 0 ORDER BY balance DESC LIMIT 8`, propertyParams
+      )
+
+    const [arrivals, departures, balances, readiness, requests, guestServiceRequests, arrivalCount, departureCount, balanceCount, readinessCount, requestCount, guestServiceRequestCount] = await Promise.all([
+      query(
+        `SELECT b.id, b.check_in_date, b.status, b.total_amount, p.name AS property_name,
+                u.first_name, u.last_name
+         FROM bookings b JOIN properties p ON p.id = b.property_id
+         JOIN users u ON u.id = b.customer_id
+         WHERE DATE(b.check_in_date) = CURDATE() AND b.status IN ('pending', 'confirmed')${propertyFilter}
+         ORDER BY b.check_in_date LIMIT 8`, propertyParams
+      ),
+      query(
+        `SELECT b.id, b.check_out_date, b.status, p.name AS property_name,
+                u.first_name, u.last_name
+         FROM bookings b JOIN properties p ON p.id = b.property_id
+         JOIN users u ON u.id = b.customer_id
+         WHERE DATE(b.check_out_date) = CURDATE() AND b.status = 'checked_in'${propertyFilter}
+         ORDER BY b.check_out_date LIMIT 8`, propertyParams
+      ),
+      balanceQuery,
+      query(
+        `SELECT id, name, type, housekeeping_status FROM properties
+         WHERE (housekeeping_status IN ('dirty', 'maintenance') OR status = 'maintenance')${ownerScoped ? ' AND owner_id = ?' : ''}
+         ORDER BY CASE WHEN housekeeping_status = 'maintenance' OR status = 'maintenance' THEN 0 ELSE 1 END, name LIMIT 8`, propertyParams
+      ),
+      query(
+        `SELECT ba.id, ba.status, ba.fulfillment_status, sa.name AS service_name,
+                p.name AS property_name, u.first_name, u.last_name
+         FROM booking_addons ba JOIN service_addons sa ON sa.id = ba.addon_id
+         JOIN bookings b ON b.id = ba.booking_id JOIN properties p ON p.id = b.property_id
+         JOIN users u ON u.id = b.customer_id
+         WHERE ba.status IN ('pending', 'approved') AND COALESCE(ba.fulfillment_status, 'pending') <> 'completed'${propertyFilter}
+         ORDER BY ba.created_at DESC LIMIT 8`, propertyParams
+      ),
+      query(
+        `SELECT r.id, r.status, r.service_type AS service_name, r.request_details, r.service_location,
+                r.pickup_location, r.destination, p.name AS property_name, u.first_name, u.last_name, r.created_at
+         FROM guest_service_requests r JOIN properties p ON p.id = r.property_id
+         JOIN users u ON u.id = r.customer_id
+         WHERE r.status IN ('requested', 'accepted', 'in_progress')${propertyFilter}
+         ORDER BY r.created_at DESC LIMIT 8`, propertyParams
+      ),
+      query(
+        `SELECT COUNT(*) AS count FROM bookings b JOIN properties p ON p.id = b.property_id
+         WHERE DATE(b.check_in_date) = CURDATE() AND b.status IN ('pending', 'confirmed')${propertyFilter}`, propertyParams
+      ),
+      query(
+        `SELECT COUNT(*) AS count FROM bookings b JOIN properties p ON p.id = b.property_id
+         WHERE DATE(b.check_out_date) = CURDATE() AND b.status = 'checked_in'${propertyFilter}`, propertyParams
+      ),
+      user.role === 'cashier' ? Promise.resolve([{ count: 0 }]) : query(
+        `SELECT COUNT(*) AS count FROM (
+           SELECT b.id, GREATEST(b.total_amount - COALESCE(SUM(CASE WHEN pay.status = 'paid' THEN pay.amount ELSE 0 END), 0), 0) AS balance
+           FROM bookings b JOIN properties p ON p.id = b.property_id LEFT JOIN payments pay ON pay.booking_id = b.id
+           WHERE b.status IN ('pending', 'confirmed', 'checked_in')${propertyFilter}
+           GROUP BY b.id, b.total_amount HAVING balance > 0
+         ) outstanding`, propertyParams
+      ),
+      query(
+        `SELECT COUNT(*) AS count FROM properties
+         WHERE (housekeeping_status IN ('dirty', 'maintenance') OR status = 'maintenance')${ownerScoped ? ' AND owner_id = ?' : ''}`, propertyParams
+      ),
+      query(
+        `SELECT COUNT(*) AS count FROM booking_addons ba JOIN bookings b ON b.id = ba.booking_id
+         JOIN properties p ON p.id = b.property_id
+         WHERE ba.status IN ('pending', 'approved') AND COALESCE(ba.fulfillment_status, 'pending') <> 'completed'${propertyFilter}`, propertyParams
+      ),
+      query(
+        `SELECT COUNT(*) AS count FROM guest_service_requests r JOIN properties p ON p.id = r.property_id
+         WHERE r.status IN ('requested', 'accepted', 'in_progress')${propertyFilter}`, propertyParams
+      ),
+    ])
+
+    const formatGuest = (row) => ({ ...row, guestName: `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Guest' })
+    return {
+      arrivals: arrivals.map(formatGuest),
+      departures: departures.map(formatGuest),
+      outstandingBalances: balances.map(formatGuest),
+      roomReadiness: readiness,
+      guestRequests: [...guestServiceRequests, ...requests].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 8).map(formatGuest),
+      counts: {
+        arrivals: Number(arrivalCount[0]?.count || 0),
+        departures: Number(departureCount[0]?.count || 0),
+        outstandingBalances: Number(balanceCount[0]?.count || 0),
+        roomReadiness: Number(readinessCount[0]?.count || 0),
+        guestRequests: Number(requestCount[0]?.count || 0) + Number(guestServiceRequestCount[0]?.count || 0),
+      },
+    }
+  }
+
   /**
    * Get dashboard KPIs
    */
@@ -58,6 +164,27 @@ class ReportService {
       totalProperties: propertiesResult[0].total_properties || 0,
       totalCustomers: customersResult[0].total_customers || 0,
       occupancyRate: parseFloat(occupancyRate),
+    }
+  }
+
+  async getCashierDashboardKPIs(cashierId) {
+    const [summary] = await query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN status = 'paid' AND created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN amount ELSE 0 END), 0) AS monthly_revenue,
+         COUNT(CASE WHEN created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN 1 END) AS monthly_transactions,
+         COUNT(DISTINCT CASE WHEN created_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01') THEN booking_id END) AS monthly_bookings,
+         COALESCE(SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END), 0) AS lifetime_revenue,
+         COUNT(*) AS lifetime_transactions
+       FROM payments WHERE issued_by = ?`,
+      [cashierId]
+    )
+
+    return {
+      monthlyRevenue: Number(summary.monthly_revenue || 0),
+      monthlyTransactions: Number(summary.monthly_transactions || 0),
+      monthlyBookings: Number(summary.monthly_bookings || 0),
+      lifetimeRevenue: Number(summary.lifetime_revenue || 0),
+      lifetimeTransactions: Number(summary.lifetime_transactions || 0),
     }
   }
 
@@ -136,7 +263,7 @@ class ReportService {
   /**
    * Get payment breakdown
    */
-  async getPaymentBreakdown(startDate = null, endDate = null) {
+  async getPaymentBreakdown(startDate = null, endDate = null, issuedBy = null) {
     let whereClause = 'WHERE status = "paid"'
     const params = []
 
@@ -148,6 +275,11 @@ class ReportService {
     if (endDate) {
       whereClause += ' AND DATE(created_at) <= ?'
       params.push(endDate)
+    }
+
+    if (issuedBy) {
+      whereClause += ' AND issued_by = ?'
+      params.push(issuedBy)
     }
 
     const result = await query(

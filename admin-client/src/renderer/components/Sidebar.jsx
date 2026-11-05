@@ -14,7 +14,6 @@ import {
   FaCashRegister,
   FaKey,
   FaReceipt,
-  FaSignOutAlt,
   FaChartBar,
   FaBroom,
   FaStar,
@@ -22,9 +21,12 @@ import {
   FaClipboardList,
   FaSun,
   FaPlane,
+  FaUtensils,
+  FaTasks,
+  FaHistory,
+  FaChartPie,
 } from 'react-icons/fa';
 import { getBranding } from '../utils/branding';
-import NotificationsBell from './NotificationsBell';
 
 export default function Sidebar({
   currentPage,
@@ -32,12 +34,12 @@ export default function Sidebar({
   collapsed,
   onToggleCollapse,
   syncStatus,
-  user,
   userRole = 'admin',
-  onLogout,
 }) {
   const isCashier = userRole === 'cashier';
   const isOwner = userRole === 'property_owner';
+  const isHousekeeping = userRole === 'housekeeping';
+  const isCatering = userRole === 'catering';
   const [branding, setBranding] = useState(getBranding);
   useEffect(() => {
     const refreshBranding = (event) => setBranding(event.detail || getBranding());
@@ -89,6 +91,7 @@ export default function Sidebar({
     {
       title: 'FRONT-DESK POS',
       items: [
+        { id: 'dashboard', label: 'My Performance', icon: FaHome },
         { id: 'cashier_terminal', label: 'Walk-In POS Desk', icon: FaCashRegister, badge: 'POS' },
         { id: 'frontdesk', label: 'Check-In / Out Desk', icon: FaKey },
         { id: 'calendar', label: 'Unit Calendar', icon: FaCalendarCheck },
@@ -111,7 +114,28 @@ export default function Sidebar({
     { title: 'OWNER WORKSPACE', items: [{ id: 'owner_portal', label: 'Owner Portal', icon: FaBuilding }] },
   ];
 
-  const sections = isOwner ? ownerSections : isCashier ? cashierSections : adminSections;
+  const housekeepingSections = [
+    { title: 'PROPERTY CARE', items: [
+      { id: 'housekeeping_portal', label: 'Overview', icon: FaChartPie },
+      { id: 'housekeeping_tasks', label: 'Task Queue', icon: FaTasks },
+      { id: 'housekeeping_rooms', label: 'Room Readiness', icon: FaBroom },
+      { id: 'housekeeping_guest_requests', label: 'Guest Laundry & Cleaning', icon: FaPlane },
+      { id: 'housekeeping_history', label: 'Completed Work', icon: FaHistory },
+    ] },
+  ];
+
+  const cateringSections = [
+    { title: 'FOOD & REFRESHMENTS', items: [
+      { id: 'catering_portal', label: 'Overview', icon: FaChartPie },
+      { id: 'catering_orders', label: 'Order Requests', icon: FaClipboardList },
+      { id: 'catering_walkins', label: 'Walk-In Orders', icon: FaCashRegister },
+      { id: 'catering_kitchen', label: 'Kitchen Queue', icon: FaTasks },
+      { id: 'catering_menu', label: 'Menu & Availability', icon: FaUtensils },
+      { id: 'catering_history', label: 'Order History', icon: FaHistory },
+    ] },
+  ];
+
+  const sections = isOwner ? ownerSections : isHousekeeping ? housekeepingSections : isCatering ? cateringSections : isCashier ? cashierSections : adminSections;
 
   return (
     <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
@@ -125,7 +149,7 @@ export default function Sidebar({
                 {branding.name}
               </span>
               <span className="brand-role">
-                {isOwner ? 'Property Owner' : isCashier ? 'Front-Desk Node' : 'Management Hub'}
+                {isOwner ? 'Property Owner' : isHousekeeping ? 'Housekeeping Team' : isCatering ? 'Catering Department' : isCashier ? 'Front-Desk Node' : 'Management Hub'}
               </span>
             </div>
           )}
@@ -171,17 +195,6 @@ export default function Sidebar({
 
       {/* Communication & Footer */}
       <div className="sidebar-footer space-y-2">
-        {!collapsed && user && (
-          <div className="sidebar-user" title={user.email || user.role}>
-            <span className="sidebar-user-initial">{user.firstName?.charAt(0)?.toUpperCase() || 'S'}</span>
-            <span className="sidebar-user-copy"><strong>{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Staff account'}</strong><small>{isOwner ? 'Property Owner' : isCashier ? 'Cashier' : 'Administrator'}</small></span>
-          </div>
-        )}
-        <div className="sidebar-communication-block">
-          {!collapsed && <div className="sidebar-section-title">COMMUNICATION</div>}
-          <NotificationsBell compact={collapsed} userRole={userRole} />
-        </div>
-
         <div className="sync-indicator w-full justify-center">
           <span className={`status-dot ${syncStatus}`}></span>
           {!collapsed && (
@@ -191,16 +204,6 @@ export default function Sidebar({
           )}
         </div>
 
-        {onLogout && (
-          <button
-            onClick={onLogout}
-            className="sidebar-signout"
-            title="Sign Out"
-          >
-            <FaSignOutAlt size={14} />
-            {!collapsed && <span>Sign Out</span>}
-          </button>
-        )}
       </div>
     </aside>
   );

@@ -101,17 +101,15 @@ namespace RMS.POSSystem.Sync
                       (Id, PropertyId, CustomerId, CashierId, CheckInDate, CheckOutDate, NumberOfGuests,
                        TotalAmount, AmountPaid, PaymentMethod, TransactionReference, TransactionStatus,
                        SyncStatus, ReceiptNumber, CreatedAt, UpdatedAt, SpecialRequests,
-                       PickupLocation, PickupDestination, PickupTime, PickupNotes)
+                       PickupLocation, PickupTime, PickupNotes)
                       VALUES (@id, @property, @customer, @cashier, @checkin, @checkout, @guests, @total, @paid,
                        @method, @reference, @status, 'synced', @receipt, @created, @updated, @notes,
-                       @pickupLocation, @pickupDestination, @pickupTime, @pickupNotes)
+                       @pickupLocation, @pickupTime, @pickupNotes)
                       ON CONFLICT(Id) DO UPDATE SET PropertyId=@property, CustomerId=@customer,
                        CheckInDate=@checkin, CheckOutDate=@checkout, NumberOfGuests=@guests, TotalAmount=@total,
                        AmountPaid=@paid, PaymentMethod=@method, TransactionReference=@reference,
-                       TransactionStatus=@status, SyncStatus='synced', UpdatedAt=@updated,
-                       SpecialRequests=@notes, PickupLocation=@pickupLocation,
-                       PickupDestination=@pickupDestination, PickupTime=@pickupTime,
-                       PickupNotes=@pickupNotes",
+                       TransactionStatus=@status, SyncStatus='synced', UpdatedAt=@updated, SpecialRequests=@notes,
+                       PickupLocation=@pickupLocation, PickupTime=@pickupTime, PickupNotes=@pickupNotes",
                     new Dictionary<string, object>
                     {
                         { "id", bookingId }, { "property", booking["property_id"]?.ToString() },
@@ -127,7 +125,6 @@ namespace RMS.POSSystem.Sync
                         { "updated", booking["updated_at"] != null ? (object)booking["updated_at"].ToString() : DateTime.UtcNow },
                         { "notes", booking["special_requests"]?.ToString() ?? "" },
                         { "pickupLocation", booking["pickup_location"]?.ToString() ?? "" },
-                        { "pickupDestination", booking["pickup_destination"]?.ToString() ?? "" },
                         { "pickupTime", booking["pickup_time"]?.ToString() ?? "" },
                         { "pickupNotes", booking["pickup_notes"]?.ToString() ?? "" }
                     });

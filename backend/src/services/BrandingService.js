@@ -4,26 +4,32 @@ export const DEFAULT_BRANDING = Object.freeze({
   brandName: process.env.BUSINESS_NAME || 'CozyStay',
   brandColor: '#176b52',
   logo: '',
+  phone: process.env.BUSINESS_PHONE || '+254 700 000000',
+  email: process.env.BUSINESS_EMAIL || 'support@rms-rentals.com',
 })
 
 export async function getSystemBranding() {
   const rows = await query(
     `SELECT setting_key, setting_value FROM system_settings
-     WHERE setting_key IN ('brand_name', 'brand_color', 'brand_logo')`
+     WHERE setting_key IN ('brand_name', 'brand_color', 'brand_logo', 'business_phone', 'business_email')`
   )
   const saved = Object.fromEntries(rows.map(({ setting_key, setting_value }) => [setting_key, setting_value]))
   return {
     brandName: saved.brand_name || DEFAULT_BRANDING.brandName,
     brandColor: /^#[0-9a-f]{6}$/i.test(saved.brand_color || '') ? saved.brand_color : DEFAULT_BRANDING.brandColor,
     logo: saved.brand_logo || '',
+    phone: saved.business_phone ?? DEFAULT_BRANDING.phone,
+    email: saved.business_email ?? DEFAULT_BRANDING.email,
   }
 }
 
-export async function saveSystemBranding({ brandName, brandColor, logo }) {
+export async function saveSystemBranding({ brandName, brandColor, logo, phone = DEFAULT_BRANDING.phone, email = DEFAULT_BRANDING.email }) {
   const values = [
     ['brand_name', brandName],
     ['brand_color', brandColor],
     ['brand_logo', logo],
+    ['business_phone', phone],
+    ['business_email', email],
   ]
   for (const [key, value] of values) {
     await query(
@@ -32,7 +38,7 @@ export async function saveSystemBranding({ brandName, brandColor, logo }) {
       [key, value]
     )
   }
-  return { brandName, brandColor, logo }
+  return { brandName, brandColor, logo, phone, email }
 }
 
 export async function getHomepageCampaigns() {

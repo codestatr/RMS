@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import axios from 'axios'
 import '../../styles/owner-portal.css'
+import { OperationsOverview } from './Dashboard'
+import { optimizePropertyImage } from '../utils/propertyImages'
 import {
   FaBed, FaBuilding, FaCalendarAlt, FaCalendarCheck, FaCheck, FaConciergeBell,
   FaEdit, FaHome, FaMoneyBillWave, FaPlus, FaStar, FaUser,
@@ -9,15 +11,18 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 const authConfig = () => ({ headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` } })
 const money = (amount) => `KES ${Number(amount || 0).toLocaleString()}`
+const propertyImages = (property) => Array.isArray(property?.images)
+  ? property.images.filter(Boolean)
+  : String(property?.images || property?.image_url || '').split('||').filter(Boolean)
 const emptyProperty = {
   name: '', type: 'airbnb', description: '', address: '', city: '', country: 'Kenya',
   pricePerNight: '', pricePerWeek: '', pricePerMonth: '', capacity: 1, bedrooms: 1,
-  bathrooms: 1, status: 'available', imageUrl: '',
+  bathrooms: 1, status: 'available', imageUrl: '', images: [],
 }
 const formatDate = (value) => value ? new Date(value).toLocaleDateString() : '—'
 
 export default function OwnerPortal({ user, onUserUpdate }) {
-  const [overview, setOverview] = useState({ properties: [], stats: {}, bookings: [], services: [], payments: [], reviews: [], monthlyRevenue: [] })
+  const [overview, setOverview] = useState({ properties: [], stats: {}, bookings: [], services: [], guestServiceRequests: [], payments: [], reviews: [], monthlyRevenue: [] })
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -30,8 +35,11 @@ export default function OwnerPortal({ user, onUserUpdate }) {
 
   const loadOverview = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_URL}/owner-portal/overview`, authConfig())
-      setOverview({ ...overview, ...(response.data?.data || {}) })
+      const [response, guestServices] = await Promise.all([
+        axios.get(`${API_URL}/owner-portal/overview`, authConfig()),
+        axios.get(`${API_URL}/guest-services`, authConfig()),
+      ])
+      setOverview((current) => ({ ...current, ...(response.data?.data || {}), guestServiceRequests: guestServices.data?.data || [] }))
       setError('')
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to load your owner portal.')
@@ -47,7 +55,8 @@ export default function OwnerPortal({ user, onUserUpdate }) {
     setSaving(true)
     setError('')
     try {
-      const payload = { ...editingProperty, pricePerNight: Number(editingProperty.pricePerNight), pricePerWeek: editingProperty.pricePerWeek ? Number(editingProperty.pricePerWeek) : null, pricePerMonth: editingProperty.pricePerMonth ? Number(editingProperty.pricePerMonth) : null }
+      const images = propertyImages(editingProperty)
+      const payload = { ...editingProperty, images, imageUrl: editingProperty.imageUrl || images[0] || '', pricePerNight: Number(editingProperty.pricePerNight), pricePerWeek: editingProperty.pricePerWeek ? Number(editingProperty.pricePerWeek) : null, pricePerMonth: editingProperty.pricePerMonth ? Number(editingProperty.pricePerMonth) : null }
       if (editingProperty.id) await axios.put(`${API_URL}/owner-portal/properties/${editingProperty.id}`, payload, authConfig())
       else await axios.post(`${API_URL}/owner-portal/properties`, payload, authConfig())
       setEditingProperty(null)
@@ -88,6 +97,14 @@ export default function OwnerPortal({ user, onUserUpdate }) {
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to update this guest service request.')
     }
+  }
+
+  async function updateGuestService(id, status) {
+    try {
+      await axios.patch(`${API_URL}/guest-services/${id}`, { status }, authConfig())
+      setNotice(`Guest request ${status.replaceAll('_', ' ')}.`)
+      await loadOverview()
+    } catch (requestError) { setError(requestError.response?.data?.error || 'Unable to update the guest service request.') }
   }
 
   async function saveProfile(event) {
@@ -147,15 +164,15 @@ export default function OwnerPortal({ user, onUserUpdate }) {
         {tabs.map(([id, label]) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`owner-tab ${activeTab === id ? 'is-active' : ''}`}>{label}</button>)}
       </nav>
 
-      {activeTab === 'overview' && <Overview properties={overview.properties} bookings={overview.bookings} onEdit={(property) => setEditingProperty({ ...property, pricePerNight: property.price_per_night, pricePerWeek: property.price_per_week || '', pricePerMonth: property.price_per_month || '', imageUrl: property.image_url || '' })} onAdd={() => setEditingProperty({ ...emptyProperty })} onRoomReady={updateHousekeeping} />}
+      {activeTab === 'overview' && <Overview properties={overview.properties} bookings={overview.bookings} onNavigate={(target) => setActiveTab(target === 'bookings' ? 'bookings' : target === 'hospitality' ? 'services' : target === 'maintenance' ? 'properties' : 'overview')} onEdit={(property) => setEditingProperty({ ...property, pricePerNight: property.price_per_night, pricePerWeek: property.price_per_week || '', pricePerMonth: property.price_per_month || '', images: propertyImages(property), imageUrl: property.image_url || propertyImages(property)[0] || '' })} onAdd={() => setEditingProperty({ ...emptyProperty })} onRoomReady={updateHousekeeping} />}
 
-      {activeTab === 'properties' && <Properties properties={overview.properties} onAdd={() => setEditingProperty({ ...emptyProperty })} onEdit={(property) => setEditingProperty({ ...property, pricePerNight: property.price_per_night, pricePerWeek: property.price_per_week || '', pricePerMonth: property.price_per_month || '', imageUrl: property.image_url || '' })} onRoomReady={updateHousekeeping} />}
+      {activeTab === 'properties' && <Properties properties={overview.properties} onAdd={() => setEditingProperty({ ...emptyProperty })} onEdit={(property) => setEditingProperty({ ...property, pricePerNight: property.price_per_night, pricePerWeek: property.price_per_week || '', pricePerMonth: property.price_per_month || '', images: propertyImages(property), imageUrl: property.image_url || propertyImages(property)[0] || '' })} onRoomReady={updateHousekeeping} />}
 
       {activeTab === 'bookings' && <Bookings bookings={visibleBookings} properties={overview.properties} status={bookingStatusFilter} onStatus={setBookingStatusFilter} property={propertyFilter} onProperty={setPropertyFilter} onUpdate={updateBooking} />}
 
       {activeTab === 'availability' && <Availability bookings={overview.bookings} properties={overview.properties} />}
 
-      {activeTab === 'services' && <RoomServices services={overview.services} onUpdate={updateService} />}
+      {activeTab === 'services' && <RoomServices services={overview.services} guestRequests={overview.guestServiceRequests} onUpdate={updateService} onUpdateGuest={updateGuestService} />}
 
       {activeTab === 'finance' && <Finances payments={overview.payments} monthlyRevenue={overview.monthlyRevenue} stats={stats} />}
 
@@ -177,9 +194,10 @@ export default function OwnerPortal({ user, onUserUpdate }) {
   )
 }
 
-function Overview({ properties, bookings, onEdit, onAdd, onRoomReady }) {
+function Overview({ properties, bookings, onNavigate, onEdit, onAdd, onRoomReady }) {
   const upcoming = bookings.filter((booking) => ['pending', 'confirmed', 'checked_in'].includes(booking.status)).slice(0, 5)
   return <div className="space-y-7">
+    <OperationsOverview userRole="property_owner" onNavigate={onNavigate} />
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-extrabold">Your properties</h3><button onClick={onAdd} className="btn-primary flex items-center gap-2"><FaPlus /> Add listing</button></div>
       {properties.length ? <PropertyCards properties={properties.slice(0, 3)} onEdit={onEdit} onRoomReady={onRoomReady} /> : <div className="admin-card p-8 text-sm text-neutral-500">No listings yet. Add a property to start managing availability, stays, and guest services.</div>}
@@ -198,8 +216,8 @@ function Properties({ properties, onAdd, onEdit, onRoomReady }) {
 }
 
 function PropertyCards({ properties, onEdit, onRoomReady }) {
-  return <div className="grid gap-4 xl:grid-cols-2">{properties.map((property) => <article key={property.id} className="admin-card overflow-hidden p-0">
-    {property.image_url && <img src={property.image_url} alt={`${property.name}`} className="h-48 w-full object-cover" />}
+  return <div className="owner-property-grid">{properties.map((property) => <article key={property.id} className="admin-card overflow-hidden p-0">
+    {property.image_url && <img src={property.image_url} alt={`${property.name}`} className="owner-property-image" />}
     <div className="space-y-4 p-5">
       <div className="flex items-start justify-between gap-3"><div><h4 className="text-lg font-extrabold">{property.name}</h4><p className="text-sm text-neutral-500">{property.address}, {property.city}</p></div><span className={`status-badge status-${property.status}`}>{property.status}</span></div>
       <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><Value label="Night" value={money(property.price_per_night)} /><Value label="Capacity" value={`${property.capacity || 1} guests`} /><Value label="Rating" value={property.average_rating ? `${Number(property.average_rating).toFixed(1)} / 5` : 'No reviews'} /><Value label="Reviews" value={property.review_count || 0} /></div>
@@ -237,9 +255,12 @@ function Availability({ bookings, properties }) {
   </section>
 }
 
-function RoomServices({ services, onUpdate }) {
+function RoomServices({ services, guestRequests = [], onUpdate, onUpdateGuest }) {
   return <section className="admin-card space-y-4 overflow-x-auto"><div><h3 className="font-extrabold">Guest room services</h3><p className="text-sm text-neutral-500">Review cleaning, laundry, transfers, and other requested services.</p></div>
     {services.length ? <table className="admin-table"><thead><tr><th>Service</th><th>Guest</th><th>Property</th><th>Stay</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{services.map((service) => <tr key={service.id}><td>{service.service_name} × {service.quantity}</td><td>{service.first_name} {service.last_name}</td><td>{service.property_name}</td><td>{formatDate(service.check_in_date)} – {formatDate(service.check_out_date)}</td><td>{money(Number(service.unit_price) * Number(service.quantity))}</td><td><span className={`status-badge status-${service.status}`}>{service.status}</span></td><td className="flex gap-2">{service.status === 'pending' && <><button onClick={() => onUpdate(service.id, 'approved')} className="btn-primary text-xs">Approve</button><button onClick={() => onUpdate(service.id, 'declined')} className="btn-secondary text-xs">Decline</button></>}{service.status === 'approved' && <button onClick={() => onUpdate(service.id, 'fulfilled')} className="btn-primary text-xs">Mark complete</button>}</td></tr>)}</tbody></table> : <p className="py-5 text-sm text-neutral-500">No guest service requests found.</p>}
+    <section className="admin-card space-y-4 overflow-x-auto"><div><h3 className="font-extrabold">In-stay guest orders</h3><p className="text-sm text-neutral-500">Food delivery, rides, cleaning, and laundry requests for your properties.</p></div>
+      {guestRequests.length ? <table className="admin-table"><thead><tr><th>Service</th><th>Guest</th><th>Details / Location</th><th>Status</th><th>Action</th></tr></thead><tbody>{guestRequests.map((request) => <tr key={request.id}><td className="capitalize">{request.service_type}</td><td>{request.first_name} {request.last_name}</td><td style={{ whiteSpace: 'normal' }}>{request.request_details}{request.service_type === 'transport' ? <span className="block text-xs text-neutral-500">{request.pickup_location} → {request.destination}</span> : <span className="block text-xs text-neutral-500">{request.service_location}</span>}</td><td><span className={`status-badge status-${request.status}`}>{request.status}</span></td><td className="flex gap-2">{request.status === 'requested' && <><button onClick={() => onUpdateGuest(request.id, 'accepted')} className="btn-primary text-xs">Accept</button><button onClick={() => onUpdateGuest(request.id, 'declined')} className="btn-secondary text-xs">Decline</button></>}{request.status === 'accepted' && <button onClick={() => onUpdateGuest(request.id, 'in_progress')} className="btn-primary text-xs">Start</button>}{request.status === 'in_progress' && <button onClick={() => onUpdateGuest(request.id, 'completed')} className="btn-primary text-xs">Complete</button>}</td></tr>)}</tbody></table> : <p className="py-4 text-sm text-neutral-500">No in-stay guest orders yet.</p>}
+    </section>
   </section>
 }
 
@@ -258,6 +279,21 @@ function Reviews({ reviews }) {
 
 function PropertyEditor({ property, saving, onChange, onCancel, onSave }) {
   const update = (key, value) => onChange({ ...property, [key]: value })
+  const addPhotos = async (event) => {
+    const files = [...(event.target.files || [])]
+    event.target.value = ''
+    const current = propertyImages(property)
+    if (current.length + files.length > 8) return window.alert('A property can have up to 8 photos.')
+    try {
+      const images = [...current, ...await Promise.all(files.map(optimizePropertyImage))]
+      if (images.reduce((total, image) => total + image.length, 0) > 8_000_000) throw new Error('Combined photo upload is too large. Remove a photo or choose smaller files.')
+      onChange({ ...property, images, imageUrl: images[0] || '' })
+    } catch (error) { window.alert(error.message || 'Unable to load those photos.') }
+  }
+  const removePhoto = (index) => {
+    const images = propertyImages(property).filter((_image, imageIndex) => imageIndex !== index)
+    onChange({ ...property, images, imageUrl: images[0] || '' })
+  }
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel() }}>
     <form role="dialog" aria-modal="true" aria-labelledby="property-editor-title" onSubmit={onSave} className="max-h-[90vh] w-full max-w-3xl space-y-5 overflow-y-auto rounded bg-white p-6 shadow-lg">
       <div><h3 id="property-editor-title" className="text-xl font-extrabold">{property.id ? 'Edit property listing' : 'Add a property listing'}</h3><p className="mt-1 text-sm text-neutral-500">Set the listing details, nightly rate, and guest capacity.</p></div>
@@ -273,7 +309,8 @@ function PropertyEditor({ property, saving, onChange, onCancel, onSave }) {
         <Field label="Guest capacity" type="number" min="1" value={property.capacity} onChange={(value) => update('capacity', value)} />
         <Field label="Bedrooms" type="number" min="0" value={property.bedrooms} onChange={(value) => update('bedrooms', value)} />
         <Field label="Bathrooms" type="number" min="0" value={property.bathrooms} onChange={(value) => update('bathrooms', value)} />
-        <Field label="Cover image URL" value={property.imageUrl} onChange={(value) => update('imageUrl', value)} />
+        <label className="form-field sm:col-span-2"><span className="form-label">Property photos (up to 8; first is the cover)</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={addPhotos} className="form-input" /><div className="owner-photo-grid">{propertyImages(property).map((image, index) => <div key={`${index}-${image.slice(0, 24)}`}><img src={image} alt={`Property ${index + 1}`} /><span>{index === 0 ? 'Cover photo' : `Photo ${index + 1}`}</span><button type="button" onClick={() => removePhoto(index)} aria-label={`Remove photo ${index + 1}`}>Remove</button></div>)}</div><small>Photos are resized before saving. Use a clear cover photo, then add room, kitchen, bathroom, and exterior views.</small></label>
+        <Field label="Or use a cover image URL" value={property.imageUrl} onChange={(value) => update('imageUrl', value)} />
         <label className="form-field"><span className="form-label">Listing status</span><select value={property.status} onChange={(event) => update('status', event.target.value)} className="form-input"><option value="available">Available for booking</option><option value="inactive">Paused / inactive</option><option value="maintenance">Maintenance</option></select></label>
         <label className="form-field sm:col-span-2"><span className="form-label">Description</span><textarea rows="3" value={property.description || ''} onChange={(event) => update('description', event.target.value)} className="form-input" /></label>
       </div>

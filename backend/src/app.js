@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import { closeSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -30,6 +31,9 @@ import endOfDayRoutes from './routes/endOfDay.js';
 import notificationRoutes from './routes/notifications.js';
 import settingsRoutes from './routes/settings.js';
 import ownerPortalRoutes from './routes/ownerPortal.js';
+import housekeepingRoutes from './routes/housekeeping.js';
+import guestServiceRoutes from './routes/guestServices.js';
+import { processDueGuestMessages } from './services/GuestMessagingService.js';
 
 // Import error handling and database
 import { errorHandler } from './utils/errors.js';
@@ -101,6 +105,8 @@ app.use('/api/end-of-day', endOfDayRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/owner-portal', ownerPortalRoutes);
+app.use('/api/housekeeping', housekeepingRoutes);
+app.use('/api/guest-services', guestServiceRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -150,14 +156,70 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3000;
 const PUBLIC_HOST = process.env.PUBLIC_HOST || process.env.HOST || 'localhost';
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
+const LOCK_DIRECTORY = join(__dirname, '..', '.runtime');
+const LOCK_FILE = join(LOCK_DIRECTORY, `api-${PORT}.pid`);
+
+function isProcessRunning(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error.code === 'EPERM';
+  }
+}
+
+function acquireServerLock() {
+  mkdirSync(LOCK_DIRECTORY, { recursive: true });
+
+  while (true) {
+    try {
+      const descriptor = openSync(LOCK_FILE, 'wx');
+      writeFileSync(descriptor, String(process.pid));
+      closeSync(descriptor);
+      process.once('exit', () => {
+        try {
+          if (readFileSync(LOCK_FILE, 'utf8').trim() === String(process.pid)) unlinkSync(LOCK_FILE);
+        } catch {}
+      });
+      return true;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+
+      let ownerPid = 0;
+      try {
+        ownerPid = Number.parseInt(readFileSync(LOCK_FILE, 'utf8'), 10);
+      } catch {}
+
+      if (isProcessRunning(ownerPid)) {
+        console.log(`Backend already running as PID ${ownerPid} on port ${PORT}; skipping duplicate start.`);
+        return false;
+      }
+
+      // Remove a stale lock left behind after an unclean shutdown.
+      try {
+        unlinkSync(LOCK_FILE);
+      } catch (unlinkError) {
+        if (unlinkError.code !== 'ENOENT') throw unlinkError;
+      }
+    }
+  }
+}
 
 // Initialize database and start server
 async function startServer() {
   try {
+    if (!acquireServerLock()) return;
+
     // Initialize database connection pool
     await initializeDatabase();
 
     const server = app.listen(PORT, BIND_HOST, () => {
+      const reminderTimer = setInterval(() => {
+        processDueGuestMessages().catch((error) => console.error('Guest reminder processing failed:', error.message));
+      }, 15 * 60 * 1000);
+      reminderTimer.unref?.();
+      processDueGuestMessages().catch((error) => console.error('Guest reminder processing failed:', error.message));
       console.log(`
 ╔════════════════════════════════════════════════════╗
 ║  CozyStay Backend API Server Started               ║

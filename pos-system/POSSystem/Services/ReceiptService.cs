@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -11,6 +12,54 @@ namespace RMS.POSSystem.Services
 {
     public class ReceiptService
     {
+        public static string GenerateReceiptText(POSTransaction tx, Property prop, string cashierName)
+        {
+            var nights = Math.Max(1, (int)(tx.CheckOutDate.Date - tx.CheckInDate.Date).TotalDays);
+            var subtotal = Math.Round(tx.TotalAmount / 1.16m, 2);
+            var tax = tx.TotalAmount - subtotal;
+            var builder = new StringBuilder();
+            builder.AppendLine(SystemBranding.BusinessName);
+            builder.AppendLine("WALK-IN BOOKING RECEIPT");
+            builder.AppendLine($"Receipt: {tx.ReceiptNumber}");
+            builder.AppendLine($"Date: {tx.CreatedAt.ToLocalTime():dd MMM yyyy, HH:mm}");
+            builder.AppendLine(new string('-', 36));
+            builder.AppendLine($"Guest: {tx.CustomerId}");
+            builder.AppendLine($"Property: {prop?.Name ?? tx.PropertyId ?? "Rental unit"}");
+            if (!string.IsNullOrWhiteSpace(prop?.Address)) builder.AppendLine($"Address: {prop.Address}");
+            builder.AppendLine($"Check-in: {tx.CheckInDate:dd MMM yyyy}");
+            builder.AppendLine($"Check-out: {tx.CheckOutDate:dd MMM yyyy}");
+            builder.AppendLine($"Nights: {nights}");
+            builder.AppendLine($"Guests: {tx.NumberOfGuests}");
+            builder.AppendLine($"Cashier: {cashierName}");
+            builder.AppendLine($"Payment: {(tx.PaymentMethod ?? "cash").Replace('_', ' ').ToUpperInvariant()}");
+            builder.AppendLine(new string('-', 36));
+            builder.AppendLine($"Subtotal: KES {subtotal:N2}");
+            builder.AppendLine($"VAT (16%): KES {tax:N2}");
+            builder.AppendLine($"TOTAL: KES {tx.TotalAmount:N2}");
+            builder.AppendLine($"Amount tendered: KES {tx.AmountPaid:N2}");
+            var change = Math.Max(0, tx.AmountPaid - tx.TotalAmount);
+            if (change > 0) builder.AppendLine($"Change: KES {change:N2}");
+            builder.AppendLine(new string('-', 36));
+            builder.AppendLine($"Thank you for choosing {SystemBranding.BusinessName}.");
+            return builder.ToString();
+        }
+
+        public static string SaveReceiptText(POSTransaction tx, string receiptText)
+        {
+            var receiptDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "RMS Receipts");
+            Directory.CreateDirectory(receiptDirectory);
+            var safeReceiptNumber = string.IsNullOrWhiteSpace(tx.ReceiptNumber) ? tx.Id : tx.ReceiptNumber;
+            foreach (var invalidCharacter in Path.GetInvalidFileNameChars())
+            {
+                safeReceiptNumber = safeReceiptNumber.Replace(invalidCharacter, '-');
+            }
+            var receiptPath = Path.Combine(receiptDirectory, $"{safeReceiptNumber}.txt");
+            File.WriteAllText(receiptPath, receiptText, Encoding.UTF8);
+            return receiptPath;
+        }
+
         public static bool PrintReceipt(POSTransaction tx, Property prop, string cashierName)
         {
             var accent = ParseBrush(SystemBranding.AccentColor, "#176B52");

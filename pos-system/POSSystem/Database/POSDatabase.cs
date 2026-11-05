@@ -96,7 +96,7 @@ namespace RMS.POSSystem.Database
                     "PickupLocation TEXT",
                     "PickupDestination TEXT",
                     "PickupTime TEXT",
-                    "PickupNotes TEXT"
+                    "PickupNotes TEXT",
                 })
                 {
                     try

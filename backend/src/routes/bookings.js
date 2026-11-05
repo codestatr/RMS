@@ -41,7 +41,11 @@ router.post(
   '/',
   authenticate,
   asyncHandler(async (req, res) => {
-    const result = await BookingService.createBooking(req.user.id, req.body)
+    const isWalkIn = ['admin', 'cashier'].includes(req.user.role) && req.body?.source === 'pos'
+    const customerId = isWalkIn
+      ? await BookingService.resolveWalkInCustomer({ name: req.body.guestName, phone: req.body.guestPhone })
+      : req.user.id
+    const result = await BookingService.createBooking(customerId, req.body, isWalkIn ? 'pos' : 'website')
 
     res.status(201).json({
       success: true,
@@ -131,6 +135,25 @@ router.put(
       message: 'Booking status updated',
       data: result,
     })
+  })
+)
+
+router.patch(
+  '/:id/status',
+  authenticate,
+  requireRole('admin', 'cashier'),
+  asyncHandler(async (req, res) => {
+    const { status } = req.body || {}
+    if (!status) throw new ValidationError('status is required')
+
+    const result = await BookingService.updateBookingStatus(
+      req.params.id,
+      status,
+      req.user.id,
+      req.user.role
+    )
+
+    res.json({ success: true, message: 'Booking status updated', data: result })
   })
 )
 

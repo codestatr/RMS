@@ -2,6 +2,7 @@ import express from 'express'
 import UserService from '../services/UserService.js'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { asyncHandler, ValidationError } from '../utils/errors.js'
+import { uploadPropertyImage } from '../middleware/propertyImageUpload.js'
 
 const router = express.Router()
 
@@ -61,6 +62,27 @@ router.get(
       message: 'Current user profile retrieved',
       data: user,
     })
+  })
+)
+
+router.put(
+  '/me',
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const result = await UserService.updateProfile(req.user.id, req.body || {})
+    res.json({ success: true, message: 'Profile updated successfully', data: result })
+  })
+)
+
+router.post(
+  '/me/avatar',
+  authenticate,
+  uploadPropertyImage,
+  asyncHandler(async (req, res) => {
+    const imageUrl = req.file?.path || ''
+    if (!imageUrl) throw new ValidationError('Choose a profile photo to upload')
+    const result = await UserService.updateProfile(req.user.id, { profileImageUrl: imageUrl })
+    res.json({ success: true, message: 'Profile photo updated successfully', data: result })
   })
 )
 

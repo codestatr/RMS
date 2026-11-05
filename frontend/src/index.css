@@ -69,6 +69,14 @@ body {
 
 body { background: var(--cozystay-canvas); color: var(--cozystay-ink); line-height: 1.55; }
 button, input, select, textarea { font-family: 'DM Sans', Arial, sans-serif; }
+button {
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease,
+    box-shadow 150ms ease, transform 100ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { cursor: not-allowed; opacity: .58; }
 button, [role='button'], input, select, textarea, .rounded, .rounded-sm, .rounded-md,
 .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-full { border-radius: 3px !important; }
 

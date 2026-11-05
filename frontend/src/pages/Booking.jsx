@@ -274,8 +274,8 @@ export default function Booking() {
                     <div className="flex items-start gap-3">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-amber-600 shadow-sm" aria-hidden="true"><FaPlane /></span>
                       <span>
-                        <span className="block text-sm font-extrabold text-neutral-900">Need airport or room pickup?</span>
-                        <span className="block text-[11px] leading-relaxed text-neutral-500 mt-1">Arrange a transfer from the airport, hotel, office, or to your room.</span>
+                  <span className="block text-sm font-extrabold text-neutral-900">Need a ride or transfer?</span>
+                  <span className="block text-[11px] leading-relaxed text-neutral-500 mt-1">Arrange a ride from the airport, SGR station, hotel, office, or any pickup point.</span>
                       </span>
                     </div>
                     <span className={`inline-flex shrink-0 items-center rounded-full px-3 py-1.5 text-[10px] font-black ${selectedAddonIds.includes('addon-airport') ? 'bg-amber-500 text-white' : 'bg-white text-neutral-700 border border-neutral-200'}`}>
@@ -311,12 +311,12 @@ export default function Booking() {
                 {selectedAddonIds.includes('addon-airport') && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-neutral-100">
                     <div>
-                      <label className="block text-xs font-bold text-neutral-600 mb-1">Pickup location</label>
-                      <input required value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)} placeholder="Airport, hotel, office, or landmark" className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs" />
+                      <label className="block text-xs font-bold text-neutral-600 mb-1">Pickup point (airport, SGR, or anywhere)</label>
+                      <input required value={pickupLocation} onChange={(e) => setPickupLocation(e.target.value)} placeholder="SGR station, airport, hotel, office, or exact address" className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-neutral-600 mb-1">Room / drop-off location *</label>
-                      <input required value={pickupDestination} onChange={(e) => setPickupDestination(e.target.value)} placeholder="Property name, room number, or exact destination" className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs" />
+                      <label className="block text-xs font-bold text-neutral-600 mb-1">Destination anywhere</label>
+                      <input required value={pickupDestination} onChange={(e) => setPickupDestination(e.target.value)} placeholder="Property, SGR station, office, or any destination" className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-300 rounded-xl text-xs" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-neutral-600 mb-1">Pickup date and time</label>

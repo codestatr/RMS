@@ -1,6 +1,7 @@
 import express from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import PropertyService from '../services/PropertyService.js'
+import HousekeepingService from '../services/HousekeepingService.js'
 import { query } from '../database/db.js'
 import { authenticate, requireRole, optionalAuthenticate } from '../middleware/auth.js'
 import { uploadPropertyImage } from '../middleware/propertyImageUpload.js'
@@ -16,7 +17,7 @@ router.get(
   '/',
   optionalAuthenticate,
   asyncHandler(async (req, res) => {
-    const { page = 1, limit = 20, type, city, minPrice, maxPrice, rating, search } = req.query
+    const { page = 1, limit = 20, type, city, minPrice, maxPrice, rating, search, includeInactive } = req.query
 
     const filters = {
       type: type || null,
@@ -25,6 +26,7 @@ router.get(
       maxPrice: maxPrice || null,
       rating: rating || null,
       search: search || null,
+      includeInactive: includeInactive === 'true' && req.user?.role === 'admin',
     }
 
     const result = await PropertyService.getAllProperties(filters, page, limit)
@@ -59,6 +61,30 @@ router.post(
   })
 )
 
+router.patch(
+  '/:id/owner',
+  authenticate,
+  requireRole('admin'),
+  asyncHandler(async (req, res) => {
+    const ownerId = String(req.body?.ownerId || '').trim()
+    if (!ownerId) throw new ValidationError('Select an active admin or property-owner account')
+
+    const owners = await query(
+      `SELECT id FROM users
+       WHERE id = ? AND role IN ('admin', 'property_owner') AND status = 'active'`,
+      [ownerId]
+    )
+    if (!owners.length) throw new ValidationError('The selected property owner is not active')
+
+    const properties = await query('SELECT id FROM properties WHERE id = ?', [req.params.id])
+    if (!properties.length) throw new ValidationError('Property not found')
+
+    await query('UPDATE properties SET owner_id = ?, updated_at = NOW() WHERE id = ?', [ownerId, req.params.id])
+    const property = await PropertyService.getPropertyById(req.params.id)
+    res.json({ success: true, message: 'Property owner updated', data: property })
+  })
+)
+
 /**
  * GET /api/properties/:id
  * Get property details by ID
@@ -88,7 +114,8 @@ router.put(
     const result = await PropertyService.updateProperty(
       req.params.id,
       req.user.id,
-      req.body
+      req.body,
+      req.user.role === 'admin'
     )
 
     res.json({
@@ -107,7 +134,7 @@ router.delete(
   '/:id',
   authenticate,
   asyncHandler(async (req, res) => {
-    const result = await PropertyService.deleteProperty(req.params.id, req.user.id)
+    const result = await PropertyService.deleteProperty(req.params.id, req.user.id, req.user.role === 'admin')
 
     res.json({
       success: true,
@@ -146,11 +173,12 @@ router.get(
 router.patch(
   '/:id/housekeeping-status',
   authenticate,
-  requireRole('admin', 'cashier'),
+  requireRole('admin', 'cashier', 'housekeeping'),
   asyncHandler(async (req, res) => {
-    const result = await PropertyService.updateHousekeepingStatus(
+    const result = await HousekeepingService.updatePropertyStatus(
       req.params.id,
-      req.body?.housekeepingStatus
+      req.body?.housekeepingStatus,
+      req.user
     )
 
     await query(

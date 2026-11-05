@@ -7,6 +7,16 @@ import { getSystemBranding } from '../services/BrandingService.js'
 
 const router = express.Router()
 
+router.get(
+  '/operations',
+  authenticate,
+  requireRole('admin', 'cashier', 'property_owner'),
+  asyncHandler(async (req, res) => {
+    const result = await ReportService.getOperationsSnapshot(req.user)
+    res.json({ success: true, message: 'Operations snapshot retrieved', data: result })
+  })
+)
+
 /**
  * GET /api/reports/dashboard
  * Get dashboard KPIs and analytics
@@ -16,7 +26,9 @@ router.get(
   authenticate,
   requireRole('admin', 'cashier'),
   asyncHandler(async (req, res) => {
-    const result = await ReportService.getDashboardKPIs()
+    const result = req.user.role === 'cashier'
+      ? await ReportService.getCashierDashboardKPIs(req.user.id)
+      : await ReportService.getDashboardKPIs()
 
     res.json({
       success: true,
@@ -114,7 +126,11 @@ router.get(
   asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query
 
-    const result = await ReportService.getPaymentBreakdown(startDate, endDate)
+    const result = await ReportService.getPaymentBreakdown(
+      startDate,
+      endDate,
+      req.user.role === 'cashier' ? req.user.id : null
+    )
 
     res.json({
       success: true,
@@ -222,6 +238,8 @@ router.post(
         businessName: branding.brandName,
         brandColor: branding.brandColor,
         logo: branding.logo,
+        phone: branding.phone,
+        email: branding.email,
       })
       res.setHeader('Content-Type', 'application/pdf')
       const safeBrandName = branding.brandName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '')

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { FaCheck, FaClock, FaPlane, FaTimes } from 'react-icons/fa'
+import '../../styles/hospitality.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
@@ -21,17 +22,20 @@ const statusLabels = {
 
 export default function Hospitality() {
   const [requests, setRequests] = useState([])
+  const [guestRequests, setGuestRequests] = useState([])
+  const [guestDrafts, setGuestDrafts] = useState({})
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('pending')
   const [currentUser] = useState(() => JSON.parse(localStorage.getItem('rms_admin_user') || 'null'))
 
   async function loadRequests() {
     try {
-      const response = await axios.get(`${API_URL}/bookings/service-requests`, {
+      const [response, guestResponse] = await Promise.all([axios.get(`${API_URL}/bookings/service-requests`, {
         ...authConfig(),
         params: filter === 'all' ? {} : { status: filter },
-      })
+      }), axios.get(`${API_URL}/guest-services`, authConfig())])
       setRequests(response.data?.data || [])
+      setGuestRequests(guestResponse.data?.data || [])
     } catch (error) {
       console.error('Failed to load hospitality requests:', error)
     } finally {
@@ -86,6 +90,20 @@ export default function Hospitality() {
       await loadRequests()
     } catch (error) {
       console.error('Failed to update hospitality request:', error)
+    }
+  }
+
+  async function updateGuestRequest(request, status) {
+    const draft = guestDrafts[request.id] || {}
+    try {
+      await axios.patch(`${API_URL}/guest-services/${request.id}`, {
+        status,
+        quotedAmount: draft.amount ?? request.quoted_amount ?? '',
+        staffNotes: draft.notes ?? request.staff_notes ?? '',
+      }, authConfig())
+      await loadRequests()
+    } catch (error) {
+      window.alert(error.response?.data?.error || 'Unable to update the guest request.')
     }
   }
 
@@ -165,6 +183,23 @@ export default function Hospitality() {
           </table>
         )}
       </div>
+
+      <section className="admin-card hospitality-orders-card space-y-4">
+        <div><h3 className="text-lg font-extrabold text-neutral-900">In-stay service orders</h3><p className="text-xs text-neutral-500">Food to the room, transport from any pickup point, cleaning, and laundry.</p></div>
+        {!guestRequests.length ? <div className="empty-state"><p>No in-stay guest service orders yet.</p></div> : <div className="hospitality-order-list">
+          {guestRequests.map((request) => {
+            const draft = guestDrafts[request.id] || {}
+            return <article key={request.id} className="hospitality-order-card">
+              <header className="hospitality-order-card-header"><div><strong>{request.service_type === 'food' ? 'Food order' : request.service_type === 'refreshments' ? 'Refreshments order' : request.service_type}</strong><span>{request.property_name} · {request.first_name} {request.last_name}</span></div><span className={`status-badge status-${request.status}`}>{request.status.replaceAll('_', ' ')}</span></header>
+              <div className="hospitality-order-card-body">
+                <div className="hospitality-order-details"><strong>Request</strong><p>{request.request_details}</p><span>{request.phone || request.email || 'No guest contact'} · {request.service_location || 'Inside the room'}</span>{request.service_type === 'transport' && <span>From {request.pickup_location} to {request.destination}</span>}{request.requested_for && <span>Requested: {new Date(request.requested_for).toLocaleString()}</span>}</div>
+                <div className="hospitality-order-reply"><label>Quote (KES)<input aria-label="Quoted amount in KES" type="number" min="0" step="1" placeholder="Enter quote before accepting" disabled={['pending', 'paid'].includes(request.payment_status)} value={draft.amount ?? request.quoted_amount ?? ''} onChange={(event) => setGuestDrafts((current) => ({ ...current, [request.id]: { ...current[request.id], amount: event.target.value } }))} /></label><label>Reply / staff note<input aria-label="Reply to guest" maxLength={1000} placeholder="Reply to guest" value={draft.notes ?? request.staff_notes ?? ''} onChange={(event) => setGuestDrafts((current) => ({ ...current, [request.id]: { ...current[request.id], notes: event.target.value } }))} /></label><span className="text-[11px] font-bold capitalize text-neutral-500">Service payment: {request.payment_status || (request.quoted_amount ? 'unpaid' : 'not quoted')}</span></div>
+                <div className="hospitality-order-actions">{request.status === 'requested' && <><button onClick={() => updateGuestRequest(request, 'accepted')} className="btn-primary text-xs">Accept &amp; quote</button><button onClick={() => updateGuestRequest(request, 'declined')} className="btn-secondary text-xs">Decline</button></>}{request.status === 'accepted' && <button disabled={Number(request.quoted_amount) > 0 && request.payment_status !== 'paid'} title={Number(request.quoted_amount) > 0 && request.payment_status !== 'paid' ? 'Waiting for guest payment' : 'Start this service'} onClick={() => updateGuestRequest(request, 'in_progress')} className="btn-primary text-xs disabled:opacity-50">Start</button>}{request.status === 'in_progress' && <button onClick={() => updateGuestRequest(request, 'completed')} className="btn-primary text-xs">Complete</button>}</div>
+              </div>
+            </article>
+          })}
+        </div>}
+      </section>
     </div>
   )
 }

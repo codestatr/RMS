@@ -119,7 +119,9 @@ class PaymentService {
   /**
    * Get payment by ID
    */
-  async getPaymentById(paymentId) {
+  async getPaymentById(paymentId, issuedBy = null) {
+    const issuerClause = issuedBy ? ' AND p.issued_by = ?' : ''
+    const params = issuedBy ? [paymentId, issuedBy] : [paymentId]
     const payments = await query(
             `SELECT p.*, b.total_amount, b.check_in_date, b.check_out_date,
               pr.name as property_name, pr.address as property_address,
@@ -130,8 +132,8 @@ class PaymentService {
        JOIN properties pr ON b.property_id = pr.id
        JOIN users u ON b.customer_id = u.id
              LEFT JOIN users issuer ON p.issued_by = issuer.id
-       WHERE p.id = ?`,
-      [paymentId]
+       WHERE p.id = ?${issuerClause}`,
+      params
     )
 
     if (payments.length === 0) {
@@ -144,10 +146,12 @@ class PaymentService {
   /**
    * Get booking payments
    */
-  async getBookingPayments(bookingId) {
+  async getBookingPayments(bookingId, issuedBy = null) {
+    const issuerClause = issuedBy ? ' AND issued_by = ?' : ''
+    const params = issuedBy ? [bookingId, issuedBy] : [bookingId]
     const payments = await query(
-      'SELECT * FROM payments WHERE booking_id = ? ORDER BY created_at DESC',
-      [bookingId]
+      `SELECT * FROM payments WHERE booking_id = ?${issuerClause} ORDER BY created_at DESC`,
+      params
     )
 
     return payments.map((payment) => this.formatPayment(payment))
@@ -156,11 +160,16 @@ class PaymentService {
   /**
    * Get all payments (admin)
    */
-  async getAllPayments(filters = {}, page = 1, limit = 20) {
+  async getAllPayments(filters = {}, page = 1, limit = 20, issuedBy = null) {
     const { status, method, startDate, endDate } = filters
 
     let whereClause = 'WHERE 1=1'
     const params = []
+
+    if (issuedBy) {
+      whereClause += ' AND p.issued_by = ?'
+      params.push(issuedBy)
+    }
 
     if (status) {
       whereClause += ' AND p.status = ?'
@@ -218,17 +227,24 @@ class PaymentService {
   /**
    * Update payment status
    */
-  async updatePaymentStatus(paymentId, newStatus) {
+  async updatePaymentStatus(paymentId, newStatus, issuedBy = null) {
     if (!validatePaymentStatus(newStatus)) {
       throw new ValidationError('Invalid payment status')
     }
 
-    await query('UPDATE payments SET status = ?, updated_at = NOW() WHERE id = ?', [
-      newStatus,
-      paymentId,
-    ])
+    const issuerClause = issuedBy ? ' AND issued_by = ?' : ''
+    const params = issuedBy ? [newStatus, paymentId, issuedBy] : [newStatus, paymentId]
+    if (issuedBy) {
+      const owned = await query('SELECT id FROM payments WHERE id = ? AND issued_by = ?', [paymentId, issuedBy])
+      if (!owned.length) throw new NotFoundError('Payment')
+    }
+    const result = await query(`UPDATE payments SET status = ?, updated_at = NOW() WHERE id = ?${issuerClause}`, params)
+    if (issuedBy && !result.affectedRows) {
+      const stillOwned = await query('SELECT id FROM payments WHERE id = ? AND issued_by = ?', [paymentId, issuedBy])
+      if (!stillOwned.length) throw new NotFoundError('Payment')
+    }
 
-    return this.getPaymentById(paymentId)
+    return this.getPaymentById(paymentId, issuedBy)
   }
 
   /**

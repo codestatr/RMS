@@ -54,7 +54,7 @@ export function validatePaymentStatus(status) {
 }
 
 export function validateUserRole(role) {
-  const validRoles = ['customer', 'admin', 'cashier', 'property_owner']
+  const validRoles = ['customer', 'admin', 'cashier', 'property_owner', 'housekeeping', 'catering']
   return validRoles.includes(role)
 }
 

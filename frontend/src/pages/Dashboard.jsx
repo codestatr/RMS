@@ -15,14 +15,18 @@ import {
   FaLock,
   FaHome,
   FaCalendarAlt,
+  FaConciergeBell,
+  FaCamera,
 } from 'react-icons/fa';
 import { useAuthStore } from '../store/authStore';
+import PasswordInput from '../components/PasswordInput';
 import { useWishlistStore } from '../store/wishlistStore';
 import { bookingService } from '../services/bookingService';
 import { authService } from '../services/authService';
 import { paymentService } from '../services/paymentService';
 import { formatKES } from '../utils/currency';
 import ReceiptPrint from '../components/ReceiptPrint';
+import GuestServices from './GuestServices';
 import toast from 'react-hot-toast';
 
 export default function Dashboard() {
@@ -47,11 +51,20 @@ export default function Dashboard() {
   const [address, setAddress] = useState(user?.address || '');
   const [city, setCity] = useState(user?.city || '');
   const [twoFactor, setTwoFactor] = useState(user?.twoFactorEnabled || false);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(user?.profileImageUrl || '');
 
   // Password state
   const [currPassword, setCurrPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [updatingProfile, setUpdatingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  useEffect(() => () => {
+    if (avatarPreview.startsWith('blob:')) URL.revokeObjectURL(avatarPreview);
+  }, [avatarPreview]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -114,7 +127,7 @@ export default function Dashboard() {
     e.preventDefault();
     setUpdatingProfile(true);
     try {
-      const res = await authService.updateProfile(user.id, {
+      const res = await authService.updateProfile({
         firstName,
         lastName,
         phone,
@@ -130,24 +143,69 @@ export default function Dashboard() {
     }
   };
 
+  const handleAvatarSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Choose a JPG, PNG, or WebP image');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error('Profile photo must be 4 MB or smaller');
+      e.target.value = '';
+      return;
+    }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleUploadAvatar = async () => {
+    if (!avatarFile) {
+      toast.error('Choose a profile photo first');
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const res = await authService.uploadProfilePhoto(avatarFile);
+      updateUser(res.data);
+      setAvatarFile(null);
+      setAvatarPreview(res.data?.profileImageUrl || '');
+      toast.success('Profile photo updated successfully');
+    } catch (err) {
+      toast.error(err.response?.data?.error || err.response?.data?.message || 'Failed to upload profile photo');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleChangePassword = async (e) => {
     e.preventDefault();
     if (!currPassword || !newPassword) {
       toast.error('Please enter current and new password');
       return;
     }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    setUpdatingPassword(true);
     try {
       await authService.changePassword(currPassword, newPassword);
       toast.success('Password changed successfully');
       setCurrPassword('');
       setNewPassword('');
+      setConfirmPassword('');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to change password');
+    } finally {
+      setUpdatingPassword(false);
     }
   };
 
   const menuItems = [
     { id: 'bookings', label: 'My Bookings', icon: <FaCalendarCheck /> },
+    { id: 'services', label: 'Guest Services', icon: <FaConciergeBell /> },
     { id: 'wishlist', label: 'Saved Wishlist', icon: <FaHeart /> },
     { id: 'receipts', label: 'Receipts & Invoices', icon: <FaReceipt /> },
     { id: 'profile', label: 'Profile & Security', icon: <FaUserCog /> },
@@ -165,9 +223,13 @@ export default function Dashboard() {
           <div>
             {/* User Overview */}
             <div className={`flex items-center gap-3 pb-4 border-b border-neutral-100 mb-4 ${collapsed ? 'justify-center' : ''}`}>
-              <div className="w-10 h-10 rounded-full bg-amber-500 text-white font-extrabold flex items-center justify-center text-sm shadow-sm flex-shrink-0">
-                {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
-              </div>
+              {avatarPreview ? (
+                <img src={avatarPreview} alt="Profile" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-amber-500 text-white font-extrabold flex items-center justify-center text-sm shadow-sm flex-shrink-0">
+                  {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                </div>
+              )}
               {!collapsed && (
                 <div className="overflow-hidden">
                   <h3 className="font-bold text-sm text-neutral-900 truncate">
@@ -331,6 +393,8 @@ export default function Dashboard() {
             </div>
           )}
 
+          {activeTab === 'services' && <GuestServices bookings={bookings} phone={user?.phone || ''} />}
+
           {/* TAB 2: WISHLIST */}
           {activeTab === 'wishlist' && (
             <div>
@@ -444,6 +508,32 @@ export default function Dashboard() {
               {/* Personal Details Form */}
               <form onSubmit={handleUpdateProfile} className="space-y-4 border border-neutral-200 p-6 rounded-2xl">
                 <h3 className="font-bold text-sm text-neutral-900 pb-2 border-b border-neutral-100">Personal Information</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 pb-2">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Profile preview" className="w-20 h-20 rounded-full object-cover border border-neutral-200" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-2xl font-bold">
+                      {user?.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex items-center gap-2 cursor-pointer bg-white border border-neutral-300 hover:border-amber-400 text-neutral-700 font-bold text-xs px-4 py-2 rounded-lg">
+                        <FaCamera /> Choose Profile Photo
+                        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarSelect} className="sr-only" />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleUploadAvatar}
+                        disabled={!avatarFile || uploadingAvatar}
+                        className="bg-neutral-800 hover:bg-neutral-900 disabled:opacity-50 text-white font-bold text-xs px-4 py-2 rounded-lg"
+                      >
+                        {uploadingAvatar ? 'Uploading…' : 'Upload Photo'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-neutral-500">JPG, PNG, or WebP. Maximum size: 4 MB.</p>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-neutral-600 mb-1">First Name</label>
@@ -481,6 +571,15 @@ export default function Dashboard() {
                       className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-lg text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-neutral-600 mb-1">Address</label>
+                    <textarea
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      rows={2}
+                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-lg text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end pt-2">
@@ -499,11 +598,12 @@ export default function Dashboard() {
                 <h3 className="font-bold text-sm text-neutral-900 pb-2 border-b border-neutral-100 flex items-center gap-2">
                   <FaLock className="text-amber-500" /> Change Account Password
                 </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-neutral-600 mb-1">Current Password</label>
-                    <input
-                      type="password"
+                    <PasswordInput
+                      id="current-account-password"
+                      label="current password"
                       value={currPassword}
                       onChange={(e) => setCurrPassword(e.target.value)}
                       className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-lg text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -511,21 +611,34 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-neutral-600 mb-1">New Password</label>
-                    <input
-                      type="password"
+                    <PasswordInput
+                      id="new-account-password"
+                      label="new password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-lg text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs font-bold text-neutral-600 mb-1">Confirm New Password</label>
+                    <PasswordInput
+                      id="confirm-account-password"
+                      label="confirm new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-lg text-sm text-neutral-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
                 </div>
+                <p className="text-xs text-neutral-500">Use at least 8 characters with uppercase and lowercase letters, a number, and a special character (@$!%*?&amp;).</p>
 
                 <div className="flex justify-end pt-2">
                   <button
                     type="submit"
+                    disabled={updatingPassword}
                     className="bg-neutral-800 hover:bg-neutral-900 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm"
                   >
-                    Update Password
+                    {updatingPassword ? 'Updating…' : 'Update Password'}
                   </button>
                 </div>
               </form>

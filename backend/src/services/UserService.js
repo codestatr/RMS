@@ -22,7 +22,8 @@ class UserService {
    * Register new user
    */
   async register(data) {
-    const { email, password, firstName, lastName, phone, role = 'customer' } = data
+    const sanitized = sanitizeInput(data)
+    const { email, password, firstName, lastName, phone, role = 'customer' } = sanitized
 
     // Validate input
     if (!validateEmail(email)) {
@@ -37,6 +38,12 @@ class UserService {
 
     if (phone && !validatePhone(phone)) {
       throw new ValidationError('Invalid phone number format')
+    }
+
+    for (const [field, maximum] of [['firstName', 100], ['lastName', 100], ['city', 100], ['country', 100], ['address', 10000]]) {
+      if (sanitized[field] !== undefined && sanitized[field] !== null && String(sanitized[field]).length > maximum) {
+        throw new ValidationError(`${field} must be ${maximum} characters or fewer`)
+      }
     }
 
     if (!validateUserRole(role)) {
@@ -249,11 +256,17 @@ class UserService {
    */
   async updateProfile(userId, data) {
     const sanitized = sanitizeInput(data)
-    const { firstName, lastName, phone, address, city, country } = sanitized
+    const { firstName, lastName, phone, address, city, country, profileImageUrl } = sanitized
 
     // Validate phone if provided
     if (phone && !validatePhone(phone)) {
       throw new ValidationError('Invalid phone number format')
+    }
+
+    if (profileImageUrl !== undefined && profileImageUrl !== null &&
+      (typeof profileImageUrl !== 'string' || profileImageUrl.length > 500 ||
+        (profileImageUrl && !(/^https:\/\//i.test(profileImageUrl) || /^\/uploads\/profiles\/[A-Za-z0-9._-]+$/.test(profileImageUrl))))) {
+      throw new ValidationError('Profile image must be a valid image URL')
     }
 
     await query(
@@ -264,9 +277,10 @@ class UserService {
            address = COALESCE(?, address),
            city = COALESCE(?, city),
            country = COALESCE(?, country),
+           profile_image_url = COALESCE(?, profile_image_url),
            updated_at = NOW()
        WHERE id = ?`,
-      [firstName, lastName, phone, address, city, country, userId]
+      [firstName, lastName, phone, address, city, country, profileImageUrl, userId].map((value) => value === undefined ? null : value)
     )
 
     return this.getUserById(userId)
@@ -314,7 +328,7 @@ class UserService {
 
     const users = await query(
       `SELECT id, email, first_name FROM users
-       WHERE email = ? AND role IN ('admin', 'cashier') AND status = 'active'`,
+       WHERE email = ? AND role IN ('admin', 'cashier', 'housekeeping', 'catering') AND status = 'active'`,
       [normalizedEmail]
     )
     if (!users.length) {
@@ -352,7 +366,7 @@ class UserService {
     }
 
     const users = await query(
-      `SELECT id FROM users WHERE email = ? AND role IN ('admin', 'cashier') AND status = 'active'`,
+      `SELECT id FROM users WHERE email = ? AND role IN ('admin', 'cashier', 'housekeeping', 'catering') AND status = 'active'`,
       [normalizedEmail]
     )
     if (!users.length) throw new UnauthorizedError('Invalid or expired recovery code')

@@ -64,11 +64,13 @@ namespace RMS.POSSystem.Views
             _method = method;
             var inactiveBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F3F4F6"));
             var inactiveFg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#374151"));
+            var activeBg = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F59E0B"));
+
             BtnMethodCash.Background = inactiveBg; BtnMethodCash.Foreground = inactiveFg;
             BtnMethodCard.Background = inactiveBg; BtnMethodCard.Foreground = inactiveFg;
             BtnMethodMpesa.Background = inactiveBg; BtnMethodMpesa.Foreground = inactiveFg;
 
-            activeBtn.SetResourceReference(Button.BackgroundProperty, "AmberBrush");
+            activeBtn.Background = activeBg;
             activeBtn.Foreground = Brushes.White;
 
             if (method == "cash")
@@ -135,14 +137,18 @@ namespace RMS.POSSystem.Views
                 _specialRequests
             );
 
+            var receiptText = ReceiptService.GenerateReceiptText(tx, _property, AuthService.CurrentUser?.FullName ?? "Cashier");
+            var receiptPath = ReceiptService.SaveReceiptText(tx, receiptText);
             var printed = ReceiptService.PrintReceipt(tx, _property, AuthService.CurrentUser?.FullName ?? "Cashier");
+
             MessageBox.Show(
                 printed
-                    ? $"Payment recorded and receipt sent to the selected printer. To create a PDF, choose Microsoft Print to PDF in the printer list.\n\nReceipt: {tx.ReceiptNumber}"
-                    : $"Payment recorded. Printing was cancelled. You can reprint receipt {tx.ReceiptNumber} from Transactions.",
+                    ? $"Payment recorded and receipt printed.\n\nSaved to: {receiptPath}"
+                    : $"Payment recorded. Printing was cancelled.\n\nReceipt saved to: {receiptPath}",
                 printed ? "Transaction Complete" : "Transaction Recorded",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                MessageBoxImage.Information
+            );
 
             _parent.UpdateHeaderInfo();
             _parent.NavigateToTransactions();

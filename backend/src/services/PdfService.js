@@ -72,7 +72,7 @@ class PdfService {
       .text(name, x + 68, y + 15, { width: 330, height: 19, ellipsis: true, lineBreak: false });
     doc.fillColor('#e4e8e5').font('Helvetica-Bold').fontSize(8)
       .text(subtitle.toUpperCase(), x + 68, y + 37, { width: 330, lineBreak: false, characterSpacing: 0.5 });
-    const contact = [business.phone || process.env.BUSINESS_PHONE, business.email || process.env.BUSINESS_EMAIL]
+    const contact = [business.phone ?? process.env.BUSINESS_PHONE, business.email ?? process.env.BUSINESS_EMAIL]
       .filter(Boolean).join('  /  ');
     if (contact) {
       doc.fillColor('#c7cfca').font('Helvetica').fontSize(7)
@@ -223,8 +223,8 @@ class PdfService {
       name: data.businessName || process.env.BUSINESS_NAME || 'CozyStay',
       logo: data.logo || process.env.BUSINESS_LOGO_PATH,
       brandColor: data.brandColor,
-      phone: process.env.BUSINESS_PHONE,
-      email: process.env.BUSINESS_EMAIL,
+      phone: data.phone ?? process.env.BUSINESS_PHONE,
+      email: data.email ?? process.env.BUSINESS_EMAIL,
     };
     const accent = this.getBrandColor(business.brandColor);
     const reportName = String(data.reportType || 'Financial & Occupancy').replaceAll('_', ' ')

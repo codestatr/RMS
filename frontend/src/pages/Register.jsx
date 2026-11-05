@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaHome, FaUser, FaEnvelope, FaLock, FaPhone, FaUserPlus } from 'react-icons/fa';
+import PasswordInput from '../components/PasswordInput';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
+import { useBranding } from '../contexts/BrandingContext';
 
 export default function Register() {
+  const branding = useBranding();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -55,8 +58,8 @@ export default function Register() {
     <div className="min-h-screen bg-neutral-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link to="/" className="inline-flex items-center gap-2 text-3xl font-extrabold text-amber-500 mb-2">
-          <img src="/rms-logo.svg" alt="CozyStay logo" className="h-10 w-10 rounded-xl object-cover border border-amber-200 shadow-sm" />
-          <span className="text-neutral-900">CozyStay</span>
+          <img src={branding.logo || '/rms-logo.svg'} alt={`${branding.brandName} logo`} className="h-10 w-10 rounded-xl object-cover border border-amber-200 shadow-sm" />
+          <span className="text-neutral-900">{branding.brandName}</span>
         </Link>
         <h2 className="text-2xl font-extrabold text-neutral-900 tracking-tight">Create your guest account</h2>
         <p className="mt-1 text-xs text-neutral-500">
@@ -131,8 +134,9 @@ export default function Register() {
             <div>
               <label className="block text-xs font-bold text-neutral-600 mb-1">Password</label>
               <div className="relative">
-                <input
-                  type="password"
+                <PasswordInput
+                  id="customer-register-password"
+                  label="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -145,8 +149,9 @@ export default function Register() {
 
             <div>
               <label className="block text-xs font-bold text-neutral-600 mb-1">Confirm Password</label>
-              <input
-                type="password"
+              <PasswordInput
+                id="customer-register-confirm-password"
+                label="confirmation password"
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

@@ -3,7 +3,7 @@ import { FiClock, FiAlertTriangle, FiLogOut, FiCheckCircle } from 'react-icons/f
 
 /**
  * IdleTimeoutModal
- * Warning modal that appears 30 seconds before auto-logout after 4 minutes of idle time.
+ * Warning modal that appears shortly before the idle auto-logout.
  */
 export default function IdleTimeoutModal({ isOpen, remainingSeconds, onExtend, onLogout }) {
   if (!isOpen) return null;
@@ -25,7 +25,7 @@ export default function IdleTimeoutModal({ isOpen, remainingSeconds, onExtend, o
             </div>
           </div>
           <span className="text-xs bg-amber-700/60 px-2 py-0.5 rounded-full font-mono font-semibold">
-            4 min idle
+            5 min idle
           </span>
         </div>
 
@@ -39,7 +39,7 @@ export default function IdleTimeoutModal({ isOpen, remainingSeconds, onExtend, o
             Are you still there?
           </h4>
           <p className="text-sm text-neutral-600 mb-5">
-            For security, your session will automatically log out after <span className="font-semibold text-neutral-800">4 minutes of inactivity</span>.
+            For security, your Electron session will automatically log out after <span className="font-semibold text-neutral-800">5 minutes of inactivity</span>.
           </p>
 
           {/* Countdown Clock Display */}

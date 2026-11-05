@@ -1,0 +1,18 @@
+.hospitality-order-list { display:grid; gap:12px; }
+.hospitality-order-card { overflow:hidden; border:1px solid var(--cozystay-line); border-radius:12px; background:var(--cozystay-surface); }
+.hospitality-order-card-header { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 16px; border-bottom:1px solid var(--cozystay-line); background:var(--cozystay-accent); color:#fff; }
+.hospitality-order-card-header > div { display:grid; gap:3px; min-width:0; }
+.hospitality-order-card-header strong { color:inherit; font-size:14px; text-transform:capitalize; }
+.hospitality-order-card-header span:not(.status-badge) { color:color-mix(in srgb,#fff 85%,var(--cozystay-accent)); font-size:11px; overflow-wrap:anywhere; }
+.hospitality-order-card-header .status-badge { flex:0 0 auto; white-space:nowrap; }
+.hospitality-order-card-body { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(230px,.8fr) auto; align-items:center; gap:18px; padding:16px; }
+.hospitality-order-details { display:grid; gap:5px; min-width:0; color:var(--cozystay-muted); font-size:12px; overflow-wrap:anywhere; }
+.hospitality-order-details strong { color:var(--cozystay-ink); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+.hospitality-order-details p { margin:0; color:var(--cozystay-ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.hospitality-order-reply { display:grid; gap:8px; min-width:0; }
+.hospitality-order-reply label { display:grid; gap:4px; color:var(--cozystay-muted); font-size:10px; font-weight:800; }
+.hospitality-order-reply input { box-sizing:border-box; width:100%; min-width:0; min-height:38px; border:1px solid var(--cozystay-line); border-radius:8px; padding:8px 10px; background:#fff; color:var(--cozystay-ink); font-size:12px; }
+.hospitality-order-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+.hospitality-order-actions button { min-height:38px; white-space:nowrap; }
+@media (max-width:1000px) { .hospitality-order-card-body { grid-template-columns:minmax(0,1fr) minmax(210px,.8fr); } .hospitality-order-actions { grid-column:1 / -1; justify-content:flex-start; } }
+@media (max-width:620px) { .hospitality-order-card-header { align-items:flex-start; } .hospitality-order-card-body { grid-template-columns:1fr; gap:12px; padding:13px; } .hospitality-order-actions { grid-column:auto; } }

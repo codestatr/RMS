@@ -27,7 +27,7 @@
                         <TextBlock Text="Logo pending" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="CozyStay POS Terminal" FontWeight="Bold" FontSize="15" Foreground="#111827"/>
+                        <TextBlock x:Name="TxtPosBrandTitle" Text="CozyStay POS Terminal" FontWeight="Bold" FontSize="15" Foreground="#111827"/>
                         <TextBlock Text="Local SQLite Node (WAL Mode)" FontSize="10" Foreground="#6B7280"/>
                     </StackPanel>
                 </StackPanel>
@@ -43,6 +43,9 @@
 
                 <!-- User Profile & Sign Out -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnInbox" Content="Inbox" Background="#FFFFFF" Foreground="#34443A"
+                            BorderBrush="#DEDFDB" BorderThickness="1" Padding="12,6" FontSize="11"
+                            FontWeight="Bold" Margin="0,0,12,0" Click="BtnInbox_Click"/>
                     <StackPanel Margin="0,0,12,0" VerticalAlignment="Center">
                         <TextBlock x:Name="TxtCashierName" Text="Cashier Name" TextAlignment="Right" FontWeight="Bold" FontSize="12" Foreground="#111827"/>
                         <TextBlock x:Name="TxtCashierRole" Text="Cashier Role" TextAlignment="Right" FontSize="10" Foreground="#6B7280"/>

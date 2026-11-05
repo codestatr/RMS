@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(20),
   first_name VARCHAR(100),
   last_name VARCHAR(100),
-  role ENUM('customer', 'admin', 'cashier', 'property_owner') NOT NULL DEFAULT 'customer',
+  role ENUM('customer', 'admin', 'cashier', 'property_owner', 'housekeeping', 'catering') NOT NULL DEFAULT 'customer',
   status ENUM('active', 'inactive', 'suspended') NOT NULL DEFAULT 'active',
   password_hash VARCHAR(255) NOT NULL,
   profile_image_url VARCHAR(500),
@@ -63,7 +63,8 @@ CREATE TABLE IF NOT EXISTS properties (
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
   KEY idx_owner (owner_id),
   KEY idx_status (status),
-  KEY idx_city (city)
+  KEY idx_city (city),
+  KEY idx_properties_sync_updated (updated_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Property Images table
@@ -77,6 +78,29 @@ CREATE TABLE IF NOT EXISTS property_images (
   FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
   KEY idx_property (property_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS housekeeping_tasks (
+  id VARCHAR(36) PRIMARY KEY,
+  property_id VARCHAR(36) NOT NULL,
+  task_type ENUM('cleaning', 'maintenance') NOT NULL,
+  title VARCHAR(150) NOT NULL,
+  description TEXT,
+  priority ENUM('low', 'normal', 'high', 'urgent') NOT NULL DEFAULT 'normal',
+  status ENUM('open', 'in_progress', 'completed') NOT NULL DEFAULT 'open',
+  assigned_to VARCHAR(36),
+  created_by VARCHAR(36),
+  completed_by VARCHAR(36),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  completed_at DATETIME,
+  FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+  FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (completed_by) REFERENCES users(id) ON DELETE SET NULL,
+  KEY idx_housekeeping_status (status, priority, created_at),
+  KEY idx_housekeeping_property (property_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 -- Amenities table
 CREATE TABLE IF NOT EXISTS amenities (
@@ -121,7 +145,99 @@ CREATE TABLE IF NOT EXISTS bookings (
   KEY idx_customer (customer_id),
   KEY idx_status (status),
   KEY idx_check_in (check_in_date),
-  KEY idx_source (source)
+  KEY idx_source (source),
+  KEY idx_bookings_sync_updated (updated_at, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS guest_service_requests (
+  id VARCHAR(36) PRIMARY KEY,
+  booking_id VARCHAR(36) NOT NULL,
+  property_id VARCHAR(36) NOT NULL,
+  customer_id VARCHAR(36) NOT NULL,
+  service_type ENUM('food', 'refreshments', 'transport', 'laundry', 'cleaning', 'other') NOT NULL,
+  request_details TEXT NOT NULL,
+  service_location VARCHAR(255),
+  pickup_location VARCHAR(255),
+  destination VARCHAR(255),
+  requested_for DATETIME,
+  quoted_amount DECIMAL(10, 2),
+  payment_status ENUM('not_required', 'unpaid', 'pending', 'paid', 'failed') NOT NULL DEFAULT 'not_required',
+  status ENUM('requested', 'accepted', 'in_progress', 'completed', 'declined') NOT NULL DEFAULT 'requested',
+  staff_notes VARCHAR(1000),
+  handled_by VARCHAR(36),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE,
+  FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
+  KEY idx_guest_service_status (status, created_at),
+  KEY idx_guest_service_customer (customer_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS guest_service_payments (
+  id VARCHAR(36) PRIMARY KEY,
+  request_id VARCHAR(36) NOT NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  method ENUM('mpesa') NOT NULL DEFAULT 'mpesa',
+  status ENUM('pending', 'paid', 'failed') NOT NULL DEFAULT 'pending',
+  transaction_ref VARCHAR(255),
+  phone VARCHAR(20),
+  receipt_number VARCHAR(50),
+  verified_by VARCHAR(36),
+  notes VARCHAR(500),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (request_id) REFERENCES guest_service_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE KEY uq_guest_service_mpesa_reference (transaction_ref),
+  KEY idx_guest_service_payment_request (request_id, created_at),
+  KEY idx_guest_service_payment_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS catering_menu_items (
+  id VARCHAR(36) PRIMARY KEY,
+  item_name VARCHAR(120) NOT NULL,
+  description VARCHAR(500),
+  image_url LONGTEXT NOT NULL,
+  is_available BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by VARCHAR(36),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  KEY idx_catering_menu_available (is_available, item_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS catering_walkin_orders (
+  id VARCHAR(36) PRIMARY KEY,
+  guest_name VARCHAR(200) NOT NULL,
+  phone VARCHAR(30),
+  order_details TEXT NOT NULL,
+  quoted_amount DECIMAL(10, 2) NOT NULL,
+  payment_method ENUM('cash', 'mpesa') NOT NULL,
+  payment_status ENUM('unpaid', 'pending', 'paid', 'failed') NOT NULL DEFAULT 'unpaid',
+  receipt_number VARCHAR(20),
+  transaction_ref VARCHAR(255),
+  status ENUM('accepted', 'in_progress', 'completed', 'cancelled') NOT NULL DEFAULT 'accepted',
+  handled_by VARCHAR(36),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (handled_by) REFERENCES users(id) ON DELETE SET NULL,
+  UNIQUE KEY uq_catering_walkin_transaction_ref (transaction_ref),
+  KEY idx_catering_walkin_status (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS guest_service_response_images (
+  id VARCHAR(36) PRIMARY KEY,
+  request_id VARCHAR(36) NOT NULL,
+  menu_item_id VARCHAR(36) NOT NULL,
+  caption VARCHAR(120) NOT NULL,
+  guest_response ENUM('pending', 'accepted', 'declined') NOT NULL DEFAULT 'pending',
+  guest_responded_at DATETIME,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (request_id) REFERENCES guest_service_requests(id) ON DELETE CASCADE,
+  FOREIGN KEY (menu_item_id) REFERENCES catering_menu_items(id) ON DELETE RESTRICT,
+  KEY idx_guest_response_image_request (request_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -184,6 +300,7 @@ CREATE TABLE IF NOT EXISTS payments (
   KEY idx_booking (booking_id),
   KEY idx_status (status),
   KEY idx_method (method),
+  KEY idx_payments_sync_updated (updated_at, id),
   UNIQUE KEY idx_transaction_ref (transaction_ref)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -315,6 +432,19 @@ CREATE TABLE IF NOT EXISTS system_settings (
   setting_value LONGTEXT NOT NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS guest_message_log (
+  id VARCHAR(36) PRIMARY KEY,
+  booking_id VARCHAR(36) NOT NULL,
+  message_type VARCHAR(50) NOT NULL,
+  status ENUM('sending', 'sent', 'failed') NOT NULL DEFAULT 'sending',
+  last_error VARCHAR(500),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_guest_message_booking_type (booking_id, message_type),
+  KEY idx_guest_message_status (status, updated_at),
+  FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('brand_color', '#176b52');
 INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('brand_name', 'CozyStay'), ('brand_logo', '');

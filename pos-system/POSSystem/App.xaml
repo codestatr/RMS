@@ -20,6 +20,21 @@
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="14,9" />
             <Setter Property="BorderThickness" Value="0" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.9" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Opacity" Value="0.78" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55" />
+                    <Setter Property="Cursor" Value="Arrow" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{DynamicResource AmberDarkBrush}" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="FontFamily" Value="Segoe UI" />
@@ -56,11 +71,11 @@
             <Setter Property="HeadersVisibility" Value="Column" />
         </Style>
         <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#F0F0ED" />
-            <Setter Property="Foreground" Value="#696D68" />
+            <Setter Property="Background" Value="{DynamicResource AmberBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Padding" Value="12,10" />
-            <Setter Property="BorderBrush" Value="#DEDFDB" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AmberDarkBrush}" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
         </Style>
         <Style TargetType="DataGridRow">

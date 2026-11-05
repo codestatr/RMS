@@ -5,19 +5,6 @@ import '../../styles/bookings.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
-const resolveGuestName = (booking = {}) => {
-  const candidate =
-    booking.guestName ||
-    booking.customerName ||
-    booking.customer_name ||
-    booking.guest_name ||
-    [booking.first_name || booking.firstName, booking.last_name || booking.lastName].filter(Boolean).join(' ') ||
-    [booking.firstName, booking.lastName].filter(Boolean).join(' ') ||
-    'Guest'
-
-  return String(candidate || 'Guest').trim() || 'Guest'
-}
-
 function authConfig() {
   return { headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` } }
 }
@@ -26,11 +13,12 @@ function authConfig() {
  * Bookings Management Page
  * View, create, and manage bookings
  */
-export default function Bookings() {
+export default function Bookings({ onNewBooking }) {
   const [bookings, setBookings] = useState([])
   const [filteredBookings, setFilteredBookings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [fetchError, setFetchError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [actionError, setActionError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -38,20 +26,26 @@ export default function Bookings() {
     const fetchBookings = async () => {
       try {
         setLoading(true)
-        setFetchError('')
-        const response = await axios.get(`${API_URL}/bookings?limit=100`, authConfig())
-        const result = response.data?.data?.data || []
+        let page = 1
+        let totalPages = 1
+        const result = []
+        do {
+          const response = await axios.get(`${API_URL}/bookings`, {
+            ...authConfig(),
+            params: { page, limit: 100 },
+          })
+          const payload = response.data?.data
+          result.push(...(Array.isArray(payload?.data) ? payload.data : []))
+          totalPages = Math.max(1, Number(payload?.pagination?.pages) || 1)
+          page += 1
+        } while (page <= totalPages)
         setBookings(result)
+        setLoadError('')
         applyFilters(result, statusFilter, searchTerm)
         setLoading(false)
       } catch (error) {
         console.error('Error fetching bookings:', error)
-        setBookings([])
-        setFetchError(
-          error?.response?.status === 401
-            ? 'Your staff session is invalid or the backend is unavailable. Please sign back in and verify the backend is running.'
-            : 'Unable to load bookings right now. Please check the backend service and try again.'
-        )
+        setLoadError(error.response?.data?.message || error.response?.data?.error || 'Unable to load bookings. Check your connection and sign-in session.')
         setLoading(false)
       }
     }
@@ -69,11 +63,11 @@ export default function Bookings() {
     }
 
     if (search) {
-      filtered = filtered.filter((b) => {
-        const guest = resolveGuestName(b).toLowerCase()
-        const property = (b.propertyName || '').toLowerCase()
-        return guest.includes(search.toLowerCase()) || property.includes(search.toLowerCase())
-      })
+      filtered = filtered.filter(
+        (b) =>
+          (b.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
+          (b.propertyName || '').toLowerCase().includes(search.toLowerCase())
+      )
     }
 
     setFilteredBookings(filtered)
@@ -101,30 +95,36 @@ export default function Bookings() {
   }
 
   const handleConfirmBooking = async (id) => {
+    setActionError('')
     try {
       await axios.put(`${API_URL}/bookings/${id}`, { status: 'confirmed' }, authConfig())
-      setBookings(bookings.map((b) => (b.id === id ? { ...b, status: 'confirmed' } : b)))
+      setBookings((items) => items.map((b) => (b.id === id ? { ...b, status: 'confirmed' } : b)))
     } catch (error) {
       console.error('Error confirming booking:', error)
+      setActionError(error.response?.data?.message || error.response?.data?.error || 'Unable to confirm booking.')
     }
   }
 
   const handleCheckIn = async (id) => {
+    setActionError('')
     try {
       await axios.put(`${API_URL}/bookings/${id}`, { status: 'checked_in' }, authConfig())
-      setBookings(bookings.map((b) => (b.id === id ? { ...b, status: 'checked_in' } : b)))
+      setBookings((items) => items.map((b) => (b.id === id ? { ...b, status: 'checked_in' } : b)))
     } catch (error) {
       console.error('Error checking in:', error)
+      setActionError(error.response?.data?.message || error.response?.data?.error || 'Unable to check in guest.')
     }
   }
 
   const handleCancelBooking = async (id) => {
     if (window.confirm('Are you sure you want to cancel this booking?')) {
+      setActionError('')
       try {
         await axios.put(`${API_URL}/bookings/${id}`, { status: 'cancelled' }, authConfig())
-        setBookings(bookings.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)))
+        setBookings((items) => items.map((b) => (b.id === id ? { ...b, status: 'cancelled' } : b)))
       } catch (error) {
         console.error('Error cancelling booking:', error)
+        setActionError(error.response?.data?.message || error.response?.data?.error || 'Unable to cancel booking.')
       }
     }
   }
@@ -163,17 +163,18 @@ export default function Bookings() {
           </select>
         </div>
 
-        <button className="btn-primary">
+        <button type="button" className="btn-primary" onClick={onNewBooking}>
           <FiPlus size={20} />
           New Booking
         </button>
       </div>
 
       {/* Bookings List */}
+      {actionError && <div className="empty-state" role="alert"><p>{actionError}</p></div>}
       <div className="bookings-list">
-        {fetchError ? (
-          <div className="empty-state" style={{ color: '#b91c1c', background: '#fff1f2', borderColor: '#fecdd3' }}>
-            <p>{fetchError}</p>
+        {loadError ? (
+          <div className="empty-state" role="alert">
+            <p>{loadError}</p>
           </div>
         ) : filteredBookings.length === 0 ? (
           <div className="empty-state">
@@ -199,7 +200,7 @@ export default function Bookings() {
               {filteredBookings.map((booking) => (
                 <tr key={booking.id}>
                   <td className="booking-id">{booking.id.slice(0, 8)}...</td>
-                  <td className="guest-name">{resolveGuestName(booking)}</td>
+                  <td className="guest-name">{booking.customerName}</td>
                   <td className="property-name">{booking.propertyName}</td>
                   <td className="check-in">
                     {new Date(booking.checkInDate).toLocaleDateString()}

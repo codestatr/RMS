@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FaUserPlus, FaUsers, FaUserCheck, FaUserTimes, FaKey } from 'react-icons/fa';
+import PasswordInput from '../components/PasswordInput';
 import axios from 'axios';
 
 export default function Staff() {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffError, setStaffError] = useState('');
+  const [updatingStaffIds, setUpdatingStaffIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // New staff form state
@@ -39,11 +41,25 @@ export default function Staff() {
     setLoading(true);
     setStaffError('');
     try {
-      const res = await axios.get(`${API_URL}/users`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
-      });
-      const allUsers = res.data?.data?.data || [];
-      setStaffList(allUsers.filter((u) => ['admin', 'cashier', 'property_owner'].includes(u.role)));
+      const token = sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || '';
+      const roles = ['admin', 'cashier', 'property_owner', 'housekeeping', 'catering'];
+      const staffByRole = await Promise.all(roles.map(async (role) => {
+        const users = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const res = await axios.get(`${API_URL}/users`, {
+            params: { role, page, limit: 100 },
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const result = res.data?.data;
+          users.push(...(Array.isArray(result?.data) ? result.data : []));
+          totalPages = Math.max(1, Number(result?.pagination?.pages) || 1);
+          page += 1;
+        } while (page <= totalPages);
+        return users;
+      }));
+      setStaffList(staffByRole.flat());
     } catch (e) {
       setStaffList([]);
       setStaffError(e.response?.data?.message || e.response?.data?.error || 'Unable to load staff accounts.');
@@ -71,7 +87,7 @@ export default function Staff() {
         role,
         password,
       }, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
+        headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || ''}` },
       });
       alert('Staff account created successfully!');
       setIsModalOpen(false);
@@ -82,19 +98,32 @@ export default function Staff() {
     }
   };
 
-  const handleToggleStatus = (member) => {
-    const newStatus = member.status === 'active' ? 'inactive' : 'active';
-    setStaffList(
-      staffList.map((s) => (s.id === member.id ? { ...s, status: newStatus } : s))
-    );
+  const handleToggleStatus = async (member) => {
+    const isActive = member.status === 'active';
+    const action = isActive ? 'deactivate' : 'reactivate';
+    const token = sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || '';
+    setUpdatingStaffIds((ids) => [...ids, member.id]);
+    setStaffError('');
+    try {
+      await axios.post(`${API_URL}/users/${member.id}/${action}`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStaffList((members) => members.map((s) => (
+        s.id === member.id ? { ...s, status: isActive ? 'inactive' : 'active' } : s
+      )));
+    } catch (error) {
+      setStaffError(error.response?.data?.message || error.response?.data?.error || 'Unable to update this staff account.');
+    } finally {
+      setUpdatingStaffIds((ids) => ids.filter((id) => id !== member.id));
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center pb-4 border-b border-neutral-200">
         <div>
-          <h2 className="text-xl font-extrabold text-neutral-900">Staff & Cashier Account Management</h2>
-          <p className="text-xs text-neutral-500">Manage administrator privileges and front-desk POS cashier logins.</p>
+          <h2 className="text-xl font-extrabold text-neutral-900">Staff & Team Account Management</h2>
+          <p className="text-xs text-neutral-500">Manage administrator, front desk, owner, housekeeping, and catering accounts.</p>
         </div>
 
         <button
@@ -110,7 +139,7 @@ export default function Staff() {
 
       <div className="admin-card">
         {staffError && <div className="login-error" role="alert">{staffError}</div>}
-        <table className="admin-table">
+        <table className="admin-table staff-table">
           <thead>
             <tr>
               <th>Name</th>
@@ -143,10 +172,15 @@ export default function Staff() {
                 </td>
                 <td>
                   <button
+                    type="button"
                     onClick={() => handleToggleStatus(member)}
-                    className="text-xs font-semibold text-neutral-600 hover:text-amber-600"
+                    disabled={updatingStaffIds.includes(member.id)}
+                    className={`staff-status-action ${member.status === 'active' ? 'is-active' : 'is-inactive'}`}
                   >
-                    {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                    {updatingStaffIds.includes(member.id) ? 'Saving…' : <>
+                      {member.status === 'active' ? <FaUserTimes aria-hidden="true" /> : <FaUserCheck aria-hidden="true" />}
+                      {member.status === 'active' ? 'Deactivate' : 'Activate'}
+                    </>}
                   </button>
                 </td>
               </tr>
@@ -200,11 +234,13 @@ export default function Staff() {
                     <option value="cashier">POS Cashier (Restricted)</option>
                     <option value="admin">Administrator (Full Access)</option>
                     <option value="property_owner">Property Owner (Owner Portal)</option>
+                    <option value="housekeeping">Housekeeping (Cleaning &amp; Maintenance Portal)</option>
+                    <option value="catering">Catering (Food &amp; Refreshments Orders)</option>
                   </select>
                 </div>
                 <div className="form-field">
                   <label className="form-label">Temporary Password</label>
-                  <div className="password-field"><FaKey /><input type="text" required value={password} onChange={(e) => setPassword(e.target.value)} className="form-input" /></div>
+                  <div className="password-field"><FaKey /><PasswordInput id="staff-temporary-password" label="temporary password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} className="form-input" /></div>
                 </div>
               </div>
 

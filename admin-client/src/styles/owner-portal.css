@@ -15,6 +15,9 @@
 .owner-intro h2 { max-width: 780px; margin-top: 8px; font-size: clamp(23px, 2vw, 30px); }
 .owner-intro > p:last-child { max-width: 780px; color: var(--cozystay-muted, #727872); font-size: 14px; }
 
+.owner-property-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; align-items: start; }
+.owner-property-image { display: block; width: 100%; aspect-ratio: 16 / 9; max-height: 180px; object-fit: cover; background: var(--cozystay-surface-muted, #f2f3f0); }
+
 .owner-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .owner-portal .owner-kpi { display: flex; align-items: center; gap: 15px; min-height: 104px; padding: 20px; }
 .owner-kpi-icon { display: grid; flex: 0 0 42px; width: 42px; height: 42px; place-items: center; border-radius: 9px; background: var(--cozystay-surface-muted, #f2f3f0); color: var(--cozystay-muted, #626a63); font-size: 17px; }
@@ -113,3 +116,8 @@
   .owner-portal .sm\:col-span-2 { grid-column: span 1; }
   .owner-portal .sm\:grid-cols-2, .owner-portal .sm\:grid-cols-3, .owner-portal .sm\:grid-cols-4 { grid-template-columns: 1fr; }
 }
+.owner-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-top: 10px; }
+.owner-photo-grid > div { position: relative; overflow: hidden; border: 1px solid var(--neutral-200); border-radius: 8px; background: #fff; }
+.owner-photo-grid img { display: block; width: 100%; height: 78px; object-fit: cover; }
+.owner-photo-grid span { display: block; padding: 4px 6px; color: var(--neutral-600); font-size: .63rem; font-weight: 700; }
+.owner-photo-grid button { width: 100%; padding: 4px; border: 0; border-top: 1px solid var(--neutral-100); color: #b42318; background: white; font-size: .64rem; font-weight: 700; cursor: pointer; }

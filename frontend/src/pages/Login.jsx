@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FaEnvelope, FaLock, FaSignInAlt, FaKey } from 'react-icons/fa';
+import PasswordInput from '../components/PasswordInput';
 import { useAuthStore } from '../store/authStore';
 import { getPendingBooking } from '../utils/pendingBooking';
 import toast from 'react-hot-toast';
+import { useBranding } from '../contexts/BrandingContext';
 
 export default function Login() {
+  const branding = useBranding();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isOtpMode, setIsOtpMode] = useState(false);
@@ -60,8 +63,8 @@ export default function Login() {
     <div className="min-h-screen bg-neutral-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link to="/" className="inline-flex flex-col items-center gap-2 text-3xl font-extrabold text-amber-500 mb-3">
-          <img src="/rms-logo.svg" alt="CozyStay logo" className="customer-login-logo" />
-          <span className="text-neutral-900">CozyStay</span>
+          <img src={branding.logo || '/rms-logo.svg'} alt={`${branding.brandName} logo`} className="customer-login-logo" />
+          <span className="text-neutral-900">{branding.brandName}</span>
         </Link>
         <h2 className="text-2xl font-extrabold text-neutral-900 tracking-tight">Sign in to your account</h2>
         <p className="mt-1 text-xs text-neutral-500">
@@ -94,8 +97,9 @@ export default function Login() {
             <div>
               <label className="block text-xs font-bold text-neutral-600 mb-1">Password</label>
               <div className="relative">
-                <input
-                  type="password"
+                <PasswordInput
+                  id="customer-login-password"
+                  label="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

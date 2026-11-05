@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FaHome, FaSignInAlt } from 'react-icons/fa';
 import { getBranding } from '../utils/branding';
+import PasswordInput from '../components/PasswordInput';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -40,11 +41,11 @@ export default function Login({ onLogin, sessionMessage = '' }) {
       }
 
       const role = data.user?.role;
-      if (!['admin', 'cashier', 'property_owner'].includes(role)) {
-        throw new Error('This portal is available to administrators, cashiers, and property owners');
+      if (!['admin', 'cashier', 'property_owner', 'housekeeping', 'catering'].includes(role)) {
+        throw new Error('This portal is available to administrators, cashiers, property owners, housekeeping, and catering staff');
       }
       if (role !== accountRole) {
-        const roleLabels = { admin: 'an administrator', cashier: 'a cashier', property_owner: 'a property owner' };
+        const roleLabels = { admin: 'an administrator', cashier: 'a cashier', property_owner: 'a property owner', housekeeping: 'a housekeeping team member', catering: 'a catering team member' };
         throw new Error(`This account is registered as ${roleLabels[role]}. Choose the matching account type.`);
       }
 
@@ -112,7 +113,7 @@ export default function Login({ onLogin, sessionMessage = '' }) {
         <div className="admin-login-header">
           {branding.logo ? <img className="login-logo" src={branding.logo} alt={`${branding.name} logo`} /> : <div className="login-logo-fallback"><FaHome /></div>}
           <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-600 block">
-            COZYSTAY OWNER & STAFF PORTAL
+            {branding.name.toUpperCase()} OWNER & STAFF PORTAL
           </span>
           <h1 className="login-brand-name">{branding.name}</h1>
           <h2 className="login-portal-title">Owner & Operations Portal</h2>
@@ -164,9 +165,9 @@ export default function Login({ onLogin, sessionMessage = '' }) {
                 </div>
                 <div>
                   <label className="block font-bold text-neutral-700 mb-1" htmlFor="recovery-new-password">New password</label>
-                  <input
+                  <PasswordInput
                     id="recovery-new-password"
-                    type="password"
+                    label="new password"
                     autoComplete="new-password"
                     minLength={8}
                     required
@@ -197,6 +198,8 @@ export default function Login({ onLogin, sessionMessage = '' }) {
               <option value="cashier">Cashier</option>
               <option value="admin">Administrator</option>
               <option value="property_owner">Property Owner</option>
+              <option value="housekeeping">Housekeeping</option>
+              <option value="catering">Catering</option>
             </select>
           </div>
           <div>
@@ -214,9 +217,9 @@ export default function Login({ onLogin, sessionMessage = '' }) {
 
           <div>
             <label className="block font-bold text-neutral-700 mb-1" htmlFor="staff-password">Password</label>
-            <input
+            <PasswordInput
               id="staff-password"
-              type="password"
+              label="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}

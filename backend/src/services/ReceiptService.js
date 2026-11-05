@@ -7,7 +7,7 @@ import { getSystemBranding } from './BrandingService.js';
 class ReceiptService {
   async assertAccess(paymentId, user) {
     const payments = await query(
-      `SELECT p.id, b.customer_id
+      `SELECT p.id, p.issued_by, b.customer_id
        FROM payments p
        JOIN bookings b ON p.booking_id = b.id
        WHERE p.id = ?`,
@@ -18,8 +18,10 @@ class ReceiptService {
       throw new NotFoundError('Payment');
     }
 
-    const staffRole = user?.role === 'admin' || user?.role === 'cashier';
-    if (!staffRole && payments[0].customer_id !== user?.id) {
+    const canAccessAsAdmin = user?.role === 'admin';
+    const canAccessAsCashier = user?.role === 'cashier' && payments[0].issued_by === user?.id;
+    const canAccessAsCustomer = payments[0].customer_id === user?.id;
+    if (!canAccessAsAdmin && !canAccessAsCashier && !canAccessAsCustomer) {
       throw new ValidationError('You do not have permission to access this receipt');
     }
 
@@ -143,8 +145,8 @@ class ReceiptService {
         name: branding.brandName,
         brandColor: branding.brandColor,
         logo: branding.logo,
-        email: process.env.BUSINESS_EMAIL || '',
-        phone: process.env.BUSINESS_PHONE || '',
+        email: branding.email,
+        phone: branding.phone,
       },
     };
   }
@@ -163,9 +165,14 @@ class ReceiptService {
   /**
    * List all receipts with filters
    */
-  async getAllReceipts(page = 1, limit = 20) {
+  async getAllReceipts(page = 1, limit = 20, issuedBy = null) {
     const offset = (page - 1) * limit;
-    const [count] = await query('SELECT COUNT(*) as total FROM receipts');
+    const filter = issuedBy ? 'WHERE p.issued_by = ?' : '';
+    const params = issuedBy ? [issuedBy] : [];
+    const [count] = await query(
+      `SELECT COUNT(*) as total FROM receipts r JOIN payments p ON r.payment_id = p.id ${filter}`,
+      params
+    );
     const receipts = await query(
       `SELECT r.*, p.amount, p.method, p.status as payment_status, 
               u.first_name, u.last_name, u.email,
@@ -175,9 +182,10 @@ class ReceiptService {
        JOIN bookings b ON p.booking_id = b.id
        JOIN properties pr ON b.property_id = pr.id
        JOIN users u ON b.customer_id = u.id
+       ${filter}
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`,
-      [limit, offset]
+      [...params, limit, offset]
     );
 
     return {

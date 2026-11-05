@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cozystay-v2';
+const CACHE_NAME = 'cozystay-v3';
 const STATIC_ASSET = /\.(?:js|css|svg|png|jpe?g|webp|ico|woff2?|ttf)$/i;
 
 self.addEventListener('install', (event) => {

@@ -29,10 +29,7 @@ namespace RMS.POSSystem.Views
             DgTransactions.ItemsSource = list;
         }
 
-        public void RefreshTransactions()
-        {
-            LoadTransactions();
-        }
+        public void RefreshTransactions() => LoadTransactions();
 
         private void BtnRefresh_Click(object sender, RoutedEventArgs e)
         {
@@ -43,9 +40,14 @@ namespace RMS.POSSystem.Views
         {
             if (sender is Button btn && btn.DataContext is POSTransaction tx)
             {
+                var receiptText = ReceiptService.GenerateReceiptText(tx, null, AuthService.CurrentUser?.FullName ?? "Cashier");
+                var receiptPath = ReceiptService.SaveReceiptText(tx, receiptText);
                 var printed = ReceiptService.PrintReceipt(tx, null, AuthService.CurrentUser?.FullName ?? "Cashier");
-                if (printed)
-                    MessageBox.Show("Receipt sent to the selected printer. Choose Microsoft Print to PDF in the printer list to save a PDF.", "Receipt Reprint", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show(
+                    printed ? $"Receipt printed and saved to:\n{receiptPath}" : $"Printing was cancelled. Receipt saved to:\n{receiptPath}",
+                    "Receipt Reprint",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
         }
     }

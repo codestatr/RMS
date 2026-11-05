@@ -9,13 +9,36 @@ import {
   validateDate,
   sanitizeInput,
 } from '../utils/validation.js'
-import NotificationService from './NotificationService.js'
+import { sendBookingConfirmation } from './GuestMessagingService.js'
+import HousekeepingService from './HousekeepingService.js'
+import { hashPassword } from '../utils/auth.js'
 
 class BookingService {
+  async resolveWalkInCustomer({ name, phone }) {
+    const cleanName = String(name || '').trim().replace(/\s+/g, ' ')
+    const cleanPhone = String(phone || '').trim()
+    if (!cleanName || !cleanPhone) throw new ValidationError('Guest name and phone are required for a walk-in booking')
+
+    const existing = await query(
+      `SELECT id FROM users WHERE phone = ? AND role = 'customer' ORDER BY created_at LIMIT 1`,
+      [cleanPhone]
+    )
+    if (existing.length) return existing[0].id
+
+    const [firstName, ...lastName] = cleanName.split(' ')
+    const customerId = uuidv4()
+    await query(
+      `INSERT INTO users (id, email, phone, first_name, last_name, role, status, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 'customer', 'active', ?, NOW(), NOW())`,
+      [customerId, `walkin-${customerId}@rms.local`, cleanPhone, firstName, lastName.join(' ') || null, await hashPassword(uuidv4())]
+    )
+    return customerId
+  }
+
   /**
    * Create booking
    */
-  async createBooking(customerId, data) {
+  async createBooking(customerId, data, source = 'website') {
     const {
       propertyId,
       checkInDate,
@@ -27,7 +50,6 @@ class BookingService {
       pickupLocation,
       pickupTime,
       pickupNotes,
-      pickupDestination,
       discountAmount = 0,
     } = sanitizeInput(data)
 
@@ -54,12 +76,15 @@ class BookingService {
 
     // Get property
     const properties = await query(
-      'SELECT id, price_per_night FROM properties WHERE id = ?',
+      `SELECT id, price_per_night, status, housekeeping_status FROM properties WHERE id = ?`,
       [propertyId]
     )
 
     if (properties.length === 0) {
       throw new NotFoundError('Property')
+    }
+    if (properties[0].status !== 'available' || properties[0].housekeeping_status === 'maintenance') {
+      throw new ValidationError('This property is not available for new bookings while it is under maintenance')
     }
 
     // Check availability
@@ -87,12 +112,9 @@ class BookingService {
     if (addons.length !== selectedAddonIds.length) {
       throw new ValidationError('One or more selected services are unavailable')
     }
-    if (selectedAddonIds.includes('addon-airport') && (!pickupLocation || !pickupTime || !pickupDestination)) {
-      throw new ValidationError('Pickup location, room destination, and pickup time are required for airport or room transfer')
+    if (selectedAddonIds.includes('addon-airport') && (!pickupLocation || !pickupTime)) {
+      throw new ValidationError('Pickup location and pickup time are required for airport pickup')
     }
-
-    const roomDropoffNote = pickupDestination ? `Room destination: ${pickupDestination}` : ''
-    const persistedPickupNotes = [pickupNotes, roomDropoffNote].filter(Boolean).join(' | ') || null
 
     // Calculate total amount, including selected local services.
     const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24))
@@ -111,12 +133,12 @@ class BookingService {
         number_of_guests, total_amount, discount_code, discount_amount, status, source, special_requests, arrival_window,
         pickup_location, pickup_time, pickup_notes,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'website', ?, ?, ?, ?, ?, NOW(), NOW())`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
       [
         bookingId, propertyId, customerId, checkInDate, checkOutDate,
-        numberOfGuests || 1, totalAmount, data.discountCode || null, safeDiscount,
+        numberOfGuests || 1, totalAmount, data.discountCode || null, safeDiscount, source,
         specialRequests || null, arrivalWindow || null, pickupLocation || null,
-        pickupTime || null, persistedPickupNotes,
+        pickupTime || null, pickupNotes || null,
       ]
     )
 
@@ -130,20 +152,6 @@ class BookingService {
 
     const bookingDetails = await this.getBookingById(bookingId)
     
-    // Send email notification
-    if (bookingDetails.email) {
-      NotificationService.sendBookingConfirmation(
-        bookingDetails.email,
-        bookingDetails.first_name,
-        {
-          propertyName: bookingDetails.property_name,
-          checkInDate,
-          checkOutDate,
-          totalAmount
-        }
-      )
-    }
-
     return bookingDetails
   }
 
@@ -156,7 +164,7 @@ class BookingService {
               p.name as property_name,
               p.type as property_type,
               p.address as property_address,
-              u.first_name, u.last_name, u.email, u.phone
+              u.first_name, u.last_name, u.email, u.phone, u.role AS customer_role
        FROM bookings b
        JOIN properties p ON b.property_id = p.id
        JOIN users u ON b.customer_id = u.id
@@ -319,7 +327,7 @@ class BookingService {
     const total = countResult[0].total
 
     const bookings = await query(
-      `SELECT b.*, p.name as property_name, u.first_name, u.last_name
+      `SELECT b.*, p.name as property_name, u.first_name, u.last_name, u.role AS customer_role
        FROM bookings b
        JOIN properties p ON b.property_id = p.id
        JOIN users u ON b.customer_id = u.id
@@ -374,7 +382,16 @@ class BookingService {
       bookingId,
     ])
 
-    return this.getBookingById(bookingId)
+    if (newStatus === 'checked_out') {
+      const [bookingProperty] = await query('SELECT property_id FROM bookings WHERE id = ?', [bookingId])
+      if (bookingProperty) await HousekeepingService.createTurnoverTask(bookingProperty.property_id, userId)
+    }
+
+    const updatedBooking = await this.getBookingById(bookingId)
+    if (newStatus === 'confirmed' && updatedBooking.customerEmail) {
+      sendBookingConfirmation(updatedBooking).catch((error) => console.error('Booking confirmation email failed:', error.message))
+    }
+    return updatedBooking
   }
 
   /**
@@ -462,7 +479,9 @@ class BookingService {
       propertyType: booking.property_type,
       propertyAddress: booking.property_address,
       customerId: booking.customer_id,
-      customerName: `${booking.first_name} ${booking.last_name}`,
+      customerName: booking.customer_role && booking.customer_role !== 'customer'
+        ? 'Guest details unavailable'
+        : `${booking.first_name || ''} ${booking.last_name || ''}`.trim() || 'Guest',
       customerEmail: booking.email,
       customerPhone: booking.phone,
       checkInDate: booking.check_in_date,

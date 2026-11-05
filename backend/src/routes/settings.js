@@ -2,8 +2,21 @@ import express from 'express'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { asyncHandler, ValidationError } from '../utils/errors.js'
 import { getHomepageCampaigns, getSystemBranding, getWebsiteAnnouncements, saveHomepageCampaigns, saveSystemBranding, saveWebsiteAnnouncements } from '../services/BrandingService.js'
+import GuestMessagingService from '../services/GuestMessagingService.js'
 
 const router = express.Router()
+router.get('/guest-messaging', authenticate, requireRole('admin'), asyncHandler(async (_req, res) => {
+  const settings = await GuestMessagingService.getGuestMessagingSettings()
+  const deliveryConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  res.json({ success: true, data: { settings, deliveryConfigured } })
+}))
+
+router.put('/guest-messaging', authenticate, requireRole('admin'), asyncHandler(async (req, res) => {
+  const settings = await GuestMessagingService.saveGuestMessagingSettings(req.body || {})
+  const deliveryConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  res.json({ success: true, message: 'Guest message templates saved', data: { settings, deliveryConfigured } })
+}))
+
 router.get('/branding', asyncHandler(async (_req, res) => {
   const branding = await getSystemBranding()
   res.json({ success: true, data: branding })
@@ -96,17 +109,25 @@ router.put(
     const brandColor = String(req.body?.brandColor || '').trim().toLowerCase()
     const brandName = String(req.body?.brandName || '').trim()
     const logo = req.body?.logo ?? ''
+    const phone = String(req.body?.phone ?? '').trim()
+    const email = String(req.body?.email ?? '').trim().toLowerCase()
     if (!/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
       throw new ValidationError('brandColor must be a 6-digit hexadecimal color')
     }
     if (!brandName || brandName.length > 80) {
       throw new ValidationError('brandName must contain between 1 and 80 characters')
     }
+    if (phone.length > 30 || (phone && !/^[+()\d\s.-]+$/.test(phone))) {
+      throw new ValidationError('phone must be a valid phone number no longer than 30 characters')
+    }
+    if (email.length > 254 || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) {
+      throw new ValidationError('email must be a valid email address no longer than 254 characters')
+    }
     if (typeof logo !== 'string' || logo.length > 1_500_000 || (logo && !/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(logo))) {
       throw new ValidationError('logo must be a PNG or JPEG image no larger than 1 MB')
     }
 
-    const branding = await saveSystemBranding({ brandColor, brandName, logo })
+    const branding = await saveSystemBranding({ brandColor, brandName, logo, phone, email })
     res.json({ success: true, data: branding })
   })
 )

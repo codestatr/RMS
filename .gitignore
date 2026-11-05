@@ -60,6 +60,7 @@ temp/
 *.sqlite
 *.sqlite3
 database/*.sql.bak
+backend/.runtime/
 
 # Logs
 logs/

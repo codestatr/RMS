@@ -1,0 +1,66 @@
+<Window x:Class="RMS.POSSystem.Views.InboxWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Staff Inbox" Height="620" Width="620" MinHeight="420" MinWidth="480"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource CanvasBrush}"
+        FontFamily="Segoe UI">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,14">
+            <Button DockPanel.Dock="Right" Content="Refresh" Click="Refresh_Click"
+                    Background="{DynamicResource AmberBrush}" Foreground="White" Padding="14,8"/>
+            <StackPanel>
+                <TextBlock Text="Staff inbox" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource InkBrush}"/>
+                <TextBlock x:Name="TxtInboxSummary" Margin="0,4,0,0" Foreground="{DynamicResource MutedBrush}"/>
+            </StackPanel>
+        </DockPanel>
+
+        <TextBlock x:Name="TxtInboxError" Grid.Row="1" Margin="0,0,0,10" Foreground="#A3342C"
+                   TextWrapping="Wrap" Visibility="Collapsed"/>
+
+        <ListBox x:Name="InboxList" Grid.Row="2" BorderThickness="0" Background="Transparent"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,0,0,10" Padding="14" BorderBrush="{DynamicResource LineBrush}"
+                            BorderThickness="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="6">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="Mark read" Padding="9,5"
+                                        Click="MarkRead_Click">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsRead}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                                <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap"/>
+                            </DockPanel>
+                            <TextBlock Text="{Binding Message}" Margin="0,8,0,8" FontSize="13"
+                                       Foreground="{DynamicResource InkSoftBrush}" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding Sender}" FontSize="11" Foreground="{DynamicResource MutedBrush}"/>
+                            <TextBlock Text="{Binding CreatedAt}" Margin="0,3,0,0" FontSize="10" Foreground="{DynamicResource MutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock x:Name="TxtInboxEmpty" Grid.Row="2" Text="No messages yet." HorizontalAlignment="Center"
+                   VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" Visibility="Collapsed"/>
+        <Button Grid.Row="3" Content="Close" HorizontalAlignment="Right" MinWidth="90" Margin="0,12,0,0"
+                Click="Close_Click" Background="#F0F2EF" Foreground="{DynamicResource InkBrush}"/>
+    </Grid>
+</Window>

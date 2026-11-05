@@ -7,33 +7,16 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 let mainWindow
+let sharedSyncManager
 
-// Prevent the Electron app from silently crashing on unhandled errors
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception in Main Process:', error)
-})
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection in Main Process at:', promise, 'reason:', reason)
-})
-
-function clearAdminAuthSession() {
-  try {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.session.clearStorageData({ storages: ['localStorage', 'sessionStorage'] }).catch(() => {})
-      mainWindow.webContents.executeJavaScript(`
-        try {
-          localStorage.removeItem('rms_admin_token');
-          localStorage.removeItem('rms_admin_user');
-          sessionStorage.removeItem('rms_admin_token');
-          sessionStorage.removeItem('rms_admin_user');
-        } catch (error) {
-          console.error('Failed to clear admin auth session:', error);
-        }
-      `).catch(() => {})
-    }
-  } catch (error) {
-    console.error('Failed to clear admin auth session:', error)
+async function getSyncManager(token = '') {
+  if (!sharedSyncManager) {
+    const { SyncManager } = await import('../sync/SyncManager.js')
+    sharedSyncManager = new SyncManager(token)
+  } else if (token) {
+    sharedSyncManager.setToken(token)
   }
+  return sharedSyncManager
 }
 
 function createWindow() {
@@ -51,12 +34,7 @@ function createWindow() {
     icon: path.join(__dirname, '../../assets/icon.png'),
   })
 
-  mainWindow.webContents.session.clearStorageData({ storages: ['localStorage', 'sessionStorage'] }).catch(() => {})
   mainWindow.loadFile(path.join(__dirname, '../index.html'))
-
-  mainWindow.on('close', () => {
-    clearAdminAuthSession()
-  })
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -64,10 +42,6 @@ function createWindow() {
 }
 
 app.on('ready', createWindow)
-
-app.on('before-quit', () => {
-  clearAdminAuthSession()
-})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -211,21 +185,21 @@ ipcMain.handle('db:query', async (_event, request = {}) => {
 })
 
 ipcMain.handle('sync:start', async (_event, { token = '' } = {}) => {
+  const syncManager = await getSyncManager(token)
+  if (syncManager.isSyncing) return { success: true, skipped: true }
   mainWindow?.webContents.send('sync:start')
   try {
-    const { SyncManager } = await import('../sync/SyncManager.js')
-    const syncManager = new SyncManager(token)
-    await syncManager.sync()
-    mainWindow?.webContents.send('sync:complete')
-    return { success: true }
+    const result = await syncManager.sync()
+    mainWindow?.webContents.send('sync:complete', result.lastSync)
+    return result
   } catch (error) {
+    console.error('Background sync failed:', error.message)
     mainWindow?.webContents.send('sync:error', error.message)
     return { success: false, error: error.message }
   }
 })
 
 ipcMain.handle('sync:status', async () => {
-  const { SyncManager } = await import('../sync/SyncManager.js')
-  const syncManager = new SyncManager()
+  const syncManager = await getSyncManager()
   return await syncManager.getStatus()
 })

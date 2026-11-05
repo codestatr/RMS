@@ -6,53 +6,58 @@ class SyncService {
   /**
    * Pull delta updates from central MySQL database
    */
-  async pullUpdates(sinceTimestamp = null) {
+  async pullUpdates(sinceTimestamp = null, cursors = {}) {
     const defaultTime = '1970-01-01 00:00:00';
     const cutoff = sinceTimestamp || defaultTime;
+    const batchSize = 250;
+    const cursor = (name) => {
+      const value = cursors?.[name];
+      if (value?.done) return null;
+      if (!value?.updatedAt || !value?.id) return { updatedAt: cutoff, id: '' };
+      const updatedAt = value.updatedAt instanceof Date
+        ? value.updatedAt.toISOString().slice(0, 19).replace('T', ' ')
+        : String(value.updatedAt).replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/Z$/, '');
+      return { updatedAt, id: String(value.id) };
+    };
+    const nextCursor = (rows) => rows.length < batchSize ? { done: true } : {
+      updatedAt: rows[rows.length - 1].updated_at instanceof Date
+        ? rows[rows.length - 1].updated_at.toISOString().slice(0, 19).replace('T', ' ')
+        : String(rows[rows.length - 1].updated_at).replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/Z$/, ''),
+      id: rows[rows.length - 1].id,
+    };
 
-    // Fetch modified properties
-    const properties = await query(
-      `SELECT p.*, 
-              AVG(r.rating) as avg_rating,
-              COUNT(DISTINCT r.id) as review_count,
-              GROUP_CONCAT(pi.image_url SEPARATOR '||') as images
+    // Keep each response bounded. The desktop applies these records in SQLite.
+    const propertyCursor = cursor('properties');
+    const properties = propertyCursor ? await query(
+      `SELECT p.id, p.owner_id, p.name, p.type, LEFT(p.description, 2000) AS description, p.address, p.latitude, p.longitude,
+              p.price_per_night, p.status, p.created_at, p.updated_at
        FROM properties p
-       LEFT JOIN reviews r ON p.id = r.property_id AND r.status = 'approved'
-       LEFT JOIN property_images pi ON p.id = pi.property_id
-       WHERE p.updated_at >= ?
-       GROUP BY p.id`,
-      [cutoff]
-    );
+       WHERE p.updated_at >= ? AND (p.updated_at > ? OR (p.updated_at = ? AND p.id > ?))
+       ORDER BY p.updated_at, p.id LIMIT ?`,
+      [cutoff, propertyCursor.updatedAt, propertyCursor.updatedAt, propertyCursor.id, batchSize]
+    ) : [];
 
-    // Fetch modified bookings
-    const bookings = await query(
-      `SELECT b.*, p.name as property_name, u.first_name, u.last_name, u.email, u.phone
+    const bookingCursor = cursor('bookings');
+    const bookings = bookingCursor ? await query(
+      `SELECT b.id, b.property_id, b.customer_id, b.check_in_date, b.check_out_date, b.number_of_guests,
+              b.total_amount, b.status, b.source, LEFT(b.special_requests, 1000) AS special_requests,
+              b.created_at, b.updated_at, p.name as property_name, u.first_name, u.last_name
        FROM bookings b
        JOIN properties p ON b.property_id = p.id
        JOIN users u ON b.customer_id = u.id
-       WHERE b.updated_at >= ?`,
-      [cutoff]
-    );
+       WHERE b.updated_at >= ? AND (b.updated_at > ? OR (b.updated_at = ? AND b.id > ?))
+       ORDER BY b.updated_at, b.id LIMIT ?`,
+      [cutoff, bookingCursor.updatedAt, bookingCursor.updatedAt, bookingCursor.id, batchSize]
+    ) : [];
 
-    // Fetch modified payments
-    const payments = await query(
-      `SELECT p.*, b.total_amount, pr.name as property_name, u.first_name, u.last_name, u.email
+    const paymentCursor = cursor('payments');
+    const payments = paymentCursor ? await query(
+      `SELECT p.id, p.booking_id, p.amount, p.method, p.status, p.transaction_ref, p.created_at, p.updated_at
        FROM payments p
-       JOIN bookings b ON p.booking_id = b.id
-       JOIN properties pr ON b.property_id = pr.id
-       JOIN users u ON b.customer_id = u.id
-       WHERE p.updated_at >= ?`,
-      [cutoff]
-    );
-
-    // Fetch modified shifts
-    const shifts = await query(
-      `SELECT s.*, u.first_name as cashier_first_name, u.last_name as cashier_last_name
-       FROM shifts s
-       JOIN users u ON s.cashier_id = u.id
-       WHERE s.updated_at >= ?`,
-      [cutoff]
-    );
+       WHERE p.updated_at >= ? AND (p.updated_at > ? OR (p.updated_at = ? AND p.id > ?))
+       ORDER BY p.updated_at, p.id LIMIT ?`,
+      [cutoff, paymentCursor.updatedAt, paymentCursor.updatedAt, paymentCursor.id, batchSize]
+    ) : [];
 
     const nowResult = await query('SELECT NOW() as sync_server_time');
     const serverTime = nowResult[0]?.sync_server_time || new Date().toISOString();
@@ -63,7 +68,11 @@ class SyncService {
         properties,
         bookings,
         payments,
-        shifts,
+      },
+      nextCursors: {
+        properties: nextCursor(properties),
+        bookings: nextCursor(bookings),
+        payments: nextCursor(payments),
       },
     };
   }
@@ -130,6 +139,11 @@ class SyncService {
       // 2. Process Bookings
       for (const b of bookings) {
         const customerId = await this.resolveBookingCustomer(connection, b);
+        const pickupDestination = b.pickupDestination || b.pickup_destination;
+        const pickupNotes = [
+          b.pickupNotes || b.pickup_notes,
+          pickupDestination ? `Room destination: ${pickupDestination}` : '',
+        ].filter(Boolean).join(' | ') || null;
         const [existing] = await connection.execute('SELECT id, updated_at, status FROM bookings WHERE id = ?', [b.id]);
         if (existing.length === 0) {
           await connection.execute(
@@ -151,7 +165,7 @@ class SyncService {
               b.specialRequests || b.special_requests || null,
               b.pickupLocation || b.pickup_location || null,
               b.pickupTime || b.pickup_time || null,
-              b.pickupNotes || b.pickup_notes || null,
+              pickupNotes,
             ]
           );
         } else {
@@ -159,7 +173,9 @@ class SyncService {
             `UPDATE bookings SET 
               status = ?, check_in_date = ?, check_out_date = ?, 
               number_of_guests = ?, total_amount = ?, special_requests = ?,
-              pickup_location = ?, pickup_time = ?, pickup_notes = ?, updated_at = NOW()
+              pickup_location = COALESCE(?, pickup_location),
+              pickup_time = COALESCE(?, pickup_time),
+              pickup_notes = COALESCE(?, pickup_notes), updated_at = NOW()
              WHERE id = ?`,
             [
               b.status,
@@ -170,7 +186,7 @@ class SyncService {
               b.specialRequests || b.special_requests || null,
               b.pickupLocation || b.pickup_location || null,
               b.pickupTime || b.pickup_time || null,
-              b.pickupNotes || b.pickup_notes || null,
+              pickupNotes,
               b.id,
             ]
           );

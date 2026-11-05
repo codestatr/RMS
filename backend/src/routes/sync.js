@@ -13,8 +13,8 @@ router.post(
   '/pull',
   authenticate,
   asyncHandler(async (req, res) => {
-    const { sinceTimestamp } = req.body;
-    const result = await SyncService.pullUpdates(sinceTimestamp);
+    const { sinceTimestamp, cursors } = req.body;
+    const result = await SyncService.pullUpdates(sinceTimestamp, cursors);
 
     res.json({
       success: true,

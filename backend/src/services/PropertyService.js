@@ -33,9 +33,10 @@ class PropertyService {
       maxPrice,
       rating,
       search,
+      includeInactive = false,
     } = filters
 
-    let whereClause = 'WHERE p.status = "available"'
+    let whereClause = includeInactive ? 'WHERE 1=1' : 'WHERE p.status = "available" AND COALESCE(p.housekeeping_status, \'clean\') <> "maintenance"'
     const params = []
 
     if (type) {
@@ -202,6 +203,7 @@ class PropertyService {
       bedrooms,
       bathrooms,
       imageUrl,
+      images,
     } = sanitizeInput(data)
 
     // Validate input
@@ -232,8 +234,9 @@ class PropertyService {
       ]
     )
 
-    if (imageUrl) {
-      await this.addImage(propertyId, imageUrl, true, 0)
+    const propertyImages = this.normalizeImageList(images, imageUrl)
+    for (let index = 0; index < propertyImages.length; index += 1) {
+      await this.addImage(propertyId, propertyImages[index], index === 0, index)
     }
 
     return this.getPropertyById(propertyId)
@@ -242,7 +245,7 @@ class PropertyService {
   /**
    * Update property
    */
-  async updateProperty(propertyId, ownerId, data) {
+  async updateProperty(propertyId, ownerId, data, isAdmin = false) {
     const sanitized = sanitizeInput(data)
 
     // Check ownership
@@ -255,7 +258,7 @@ class PropertyService {
       throw new NotFoundError('Property')
     }
 
-    if (properties[0].owner_id !== ownerId) {
+    if (!isAdmin && properties[0].owner_id !== ownerId) {
       throw new ValidationError('You do not have permission to update this property')
     }
 
@@ -308,9 +311,12 @@ class PropertyService {
       ]
     )
 
-    if (sanitized.imageUrl) {
+    if (Object.prototype.hasOwnProperty.call(sanitized, 'images') || sanitized.imageUrl) {
       await query('DELETE FROM property_images WHERE property_id = ?', [propertyId])
-      await this.addImage(propertyId, sanitized.imageUrl, true, 0)
+      const propertyImages = this.normalizeImageList(sanitized.images, sanitized.imageUrl)
+      for (let index = 0; index < propertyImages.length; index += 1) {
+        await this.addImage(propertyId, propertyImages[index], index === 0, index)
+      }
     }
 
     return this.getPropertyById(propertyId)
@@ -319,7 +325,7 @@ class PropertyService {
   /**
    * Delete property
    */
-  async deleteProperty(propertyId, ownerId) {
+  async deleteProperty(propertyId, ownerId, isAdmin = false) {
     // Check ownership
     const properties = await query(
       'SELECT owner_id FROM properties WHERE id = ?',
@@ -330,7 +336,7 @@ class PropertyService {
       throw new NotFoundError('Property')
     }
 
-    if (properties[0].owner_id !== ownerId) {
+    if (!isAdmin && properties[0].owner_id !== ownerId) {
       throw new ValidationError('You do not have permission to delete this property')
     }
 
@@ -361,10 +367,29 @@ class PropertyService {
     return { id: imageId, imageUrl, isCover, displayOrder }
   }
 
+  normalizeImageList(images, imageUrl = null) {
+    const source = Array.isArray(images)
+      ? (imageUrl ? [imageUrl, ...images.filter((image) => image !== imageUrl)] : images)
+      : (imageUrl ? [imageUrl] : [])
+    const normalized = [...new Set(source.map((image) => String(image || '').trim()).filter(Boolean))]
+    if (normalized.length > 8) throw new ValidationError('A property can have up to 8 photos')
+    if (normalized.some((image) => image.length > 1_500_000 || !(/^(data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$|https?:\/\/\S+)$/i.test(image)))) {
+      throw new ValidationError('Property photos must be valid image data or image URLs, each no larger than 1 MB')
+    }
+    if (normalized.reduce((sum, image) => sum + image.length, 0) > 8_000_000) {
+      throw new ValidationError('Property photos exceed the combined upload limit')
+    }
+    return normalized
+  }
+
   /**
    * Check property availability
    */
   async checkAvailability(propertyId, checkInDate, checkOutDate) {
+    const [property] = await query(`SELECT id FROM properties WHERE id = ? AND status = 'available'
+      AND COALESCE(housekeeping_status, 'clean') <> 'maintenance'`, [propertyId])
+    if (!property) return { isAvailable: false, conflictingBookings: [], reason: 'Property is unavailable or under maintenance' }
+
     const bookings = await query(
       `SELECT check_in_date, check_out_date FROM bookings
        WHERE property_id = ? 

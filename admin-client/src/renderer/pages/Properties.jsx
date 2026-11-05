@@ -25,16 +25,39 @@ export default function Properties() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingProperty, setEditingProperty] = useState(null)
+  const [managerAccounts, setManagerAccounts] = useState([])
+  const [savingOwnerId, setSavingOwnerId] = useState('')
+  const [ownerAssignmentMessage, setOwnerAssignmentMessage] = useState('')
+  const [ownerAssignmentFailed, setOwnerAssignmentFailed] = useState(false)
 
   // Keep the admin list backed by the same API used by the customer website.
   useEffect(() => {
     const fetchProperties = async () => {
       try {
         setLoading(true)
-        const response = await axios.get(`${API_URL}/properties?limit=100`, authConfig())
-        const result = response.data?.data?.data || []
+        let page = 1
+        let totalPages = 1
+        const result = []
+        do {
+          const response = await axios.get(`${API_URL}/properties`, {
+            ...authConfig(),
+            params: { page, limit: 100, includeInactive: true },
+          })
+          const payload = response.data?.data
+          result.push(...(Array.isArray(payload?.data) ? payload.data : []))
+          totalPages = Math.max(1, Number(payload?.pagination?.pages) || 1)
+          page += 1
+        } while (page <= totalPages)
         setProperties(result)
         setFilteredProperties(result)
+        const accounts = await Promise.all(['admin', 'property_owner'].map(async (role) => {
+          const response = await axios.get(`${API_URL}/users`, {
+            ...authConfig(),
+            params: { page: 1, limit: 100, role, status: 'active' },
+          })
+          return response.data?.data?.data || []
+        }))
+        setManagerAccounts(accounts.flat())
         setLoading(false)
       } catch (error) {
         console.error('Error fetching properties:', error)
@@ -49,9 +72,9 @@ export default function Properties() {
   useEffect(() => {
     const filtered = properties.filter(
       (p) =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.city.toLowerCase().includes(searchTerm.toLowerCase())
+        String(p.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(p.address || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        String(p.city || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
     setFilteredProperties(filtered)
   }, [searchTerm, properties])
@@ -101,6 +124,24 @@ export default function Properties() {
     }
   }
 
+  const assignPropertyOwner = async (propertyId, ownerId) => {
+    if (!ownerId) return
+    setSavingOwnerId(propertyId)
+    setOwnerAssignmentMessage('')
+    setOwnerAssignmentFailed(false)
+    try {
+      const response = await axios.patch(`${API_URL}/properties/${propertyId}/owner`, { ownerId }, authConfig())
+      const updatedProperty = response.data?.data
+      setProperties((current) => current.map((property) => property.id === propertyId ? { ...property, ...updatedProperty } : property))
+      setOwnerAssignmentMessage('Owner account updated. The property and its related records will now appear in that owner portal.')
+    } catch (error) {
+      setOwnerAssignmentMessage(error.response?.data?.error || 'Could not assign this property to that account.')
+      setOwnerAssignmentFailed(true)
+    } finally {
+      setSavingOwnerId('')
+    }
+  }
+
   if (loading) {
     return <div className="loading-spinner">Loading properties...</div>
   }
@@ -124,6 +165,7 @@ export default function Properties() {
           Add Property
         </button>
       </div>
+      {ownerAssignmentMessage && <div className={ownerAssignmentFailed ? 'login-error' : 'settings-feedback-success'} role={ownerAssignmentFailed ? 'alert' : 'status'}>{ownerAssignmentMessage}</div>}
 
       {/* Property List */}
       <div className="properties-list">
@@ -148,6 +190,7 @@ export default function Properties() {
                   <th>Price / Night</th>
                   <th>Capacity</th>
                   <th>Status</th>
+                  <th>Owner account</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -168,6 +211,22 @@ export default function Properties() {
                     <span className={`status-badge ${property.status}`}>
                       {property.status}
                     </span>
+                  </td>
+                  <td>
+                    <select
+                      aria-label={`Owner account for ${property.name}`}
+                      className="form-input property-owner-select"
+                      value={property.ownerId || ''}
+                      disabled={savingOwnerId === property.id || managerAccounts.length === 0}
+                      onChange={(event) => assignPropertyOwner(property.id, event.target.value)}
+                    >
+                      <option value="" disabled>Select account</option>
+                      {managerAccounts.map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {[account.firstName, account.lastName].filter(Boolean).join(' ') || account.email} ({account.role === 'property_owner' ? 'Property owner' : 'Admin'})
+                        </option>
+                      ))}
+                    </select>
                   </td>
                   <td>
                     <div className="property-table-actions">

@@ -92,7 +92,7 @@ export default function CashierTransactions() {
   };
 
   return (
-    <div className="transactions-page">
+    <div className="transactions-page pos-page">
       <div className="transactions-header">
         <div>
           <h2 className="transactions-title">

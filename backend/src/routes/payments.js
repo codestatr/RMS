@@ -42,7 +42,7 @@ router.get(
   '/mpesa/status/:checkoutRequestId',
   authenticate,
   asyncHandler(async (req, res) => {
-    const result = await MpesaService.getPaymentStatus(req.params.checkoutRequestId)
+    const result = await MpesaService.getPaymentStatus(req.params.checkoutRequestId, req.user)
     res.json({ success: true, data: result })
   })
 )
@@ -95,7 +95,12 @@ router.get(
       endDate: endDate || null,
     }
 
-    const result = await PaymentService.getAllPayments(filters, page, limit)
+    const result = await PaymentService.getAllPayments(
+      filters,
+      page,
+      limit,
+      req.user.role === 'cashier' ? req.user.id : null
+    )
 
     res.json({
       success: true,
@@ -113,7 +118,10 @@ router.get(
   '/:id',
   authenticate,
   asyncHandler(async (req, res) => {
-    const result = await PaymentService.getPaymentById(req.params.id)
+    const result = await PaymentService.getPaymentById(
+      req.params.id,
+      req.user.role === 'cashier' ? req.user.id : null
+    )
 
     res.json({
       success: true,
@@ -131,7 +139,10 @@ router.get(
   '/booking/:bookingId',
   authenticate,
   asyncHandler(async (req, res) => {
-    const result = await PaymentService.getBookingPayments(req.params.bookingId)
+    const result = await PaymentService.getBookingPayments(
+      req.params.bookingId,
+      req.user.role === 'cashier' ? req.user.id : null
+    )
 
     res.json({
       success: true,
@@ -156,7 +167,11 @@ router.put(
       throw new ValidationError('status is required')
     }
 
-    const result = await PaymentService.updatePaymentStatus(req.params.id, status)
+    const result = await PaymentService.updatePaymentStatus(
+      req.params.id,
+      status,
+      req.user.role === 'cashier' ? req.user.id : null
+    )
 
     res.json({
       success: true,

@@ -16,10 +16,10 @@ class NotificationService {
     });
   }
 
-  async sendEmail(to, subject, htmlContent) {
+  async sendEmail(to, subject, htmlContent, senderName = 'CozyStay') {
     try {
       const info = await this.transporter.sendMail({
-        from: `"CozyStay" <${process.env.SMTP_USER || 'noreply@cozystay.local'}>`,
+        from: `"${String(senderName || 'CozyStay').replace(/[\r\n"<>]/g, '').slice(0, 80)}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@cozystay.local'}>`,
         to,
         subject,
         html: htmlContent,

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 
@@ -18,29 +18,14 @@ import Register from './pages/Register'
 import NotFound from './pages/NotFound'
 
 import './index.css'
-import api from './services/api'
-import { applyBrandColor } from './utils/brandTheme'
+import { BrandingProvider } from './contexts/BrandingContext'
 
 function App() {
-  useEffect(() => {
-    const refreshBrandColor = () => {
-      api.get('/settings/branding')
-        .then(({ data }) => applyBrandColor(data?.data?.brandColor))
-        .catch(() => applyBrandColor())
-    }
-    refreshBrandColor()
-    const interval = window.setInterval(refreshBrandColor, 60000)
-    window.addEventListener('focus', refreshBrandColor)
-    return () => {
-      window.clearInterval(interval)
-      window.removeEventListener('focus', refreshBrandColor)
-    }
-  }, [])
-
   return (
     <Router>
-      <div className="flex flex-col min-h-screen bg-neutral-50">
-        <Navbar />
+      <BrandingProvider>
+        <div className="flex flex-col min-h-screen bg-neutral-50">
+          <Navbar />
         
         <main className="flex-1">
           <Routes>
@@ -56,10 +41,11 @@ function App() {
           </Routes>
         </main>
 
-        <Footer />
+          <Footer />
         
         <Toaster position="top-right" />
-      </div>
+        </div>
+      </BrandingProvider>
     </Router>
   )
 }

@@ -7,6 +7,7 @@ const dbPath = path.join(app.getPath('userData'), 'rms.db')
 class DatabaseManager {
   constructor() {
     this.db = new Database(dbPath)
+    this.statements = new Map()
     this.db.pragma('journal_mode = WAL')
     this.initializeSchema()
   }
@@ -114,6 +115,14 @@ class DatabaseManager {
       )
     `)
 
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS sync_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
     // Cashier shifts table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS shifts (
@@ -132,18 +141,28 @@ class DatabaseManager {
   }
 
   run(sql, params = []) {
-    const stmt = this.db.prepare(sql)
-    return stmt.run(...params)
+    return this.statement(sql).run(...params)
   }
 
   get(sql, params = []) {
-    const stmt = this.db.prepare(sql)
-    return stmt.get(...params)
+    return this.statement(sql).get(...params)
   }
 
   all(sql, params = []) {
-    const stmt = this.db.prepare(sql)
-    return stmt.all(...params)
+    return this.statement(sql).all(...params)
+  }
+
+  statement(sql) {
+    let statement = this.statements.get(sql)
+    if (!statement) {
+      statement = this.db.prepare(sql)
+      this.statements.set(sql, statement)
+    }
+    return statement
+  }
+
+  batch(callback) {
+    return this.db.transaction(callback)
   }
 
   close() {

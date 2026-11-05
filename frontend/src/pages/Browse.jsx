@@ -13,6 +13,7 @@ import {
 import { propertyService } from '../services/propertyService';
 import { useWishlistStore } from '../store/wishlistStore';
 import { formatKES } from '../utils/currency';
+import ListingPhotoCarousel from '../components/ListingPhotoCarousel';
 import toast from 'react-hot-toast';
 import '../styles/marketplace.css';
 
@@ -267,13 +268,6 @@ export default function Browse() {
             ) : (
               <div className="browse-property-grid">
                 {filteredProperties.map((property) => {
-                  const coverImg =
-                    (Array.isArray(property.images)
-                      ? property.images[0]
-                      : typeof property.images === 'string'
-                      ? property.images.split(',')[0]
-                      : null) || null;
-
                   const saved = isSaved(property.id);
                   const isCompared = comparedProperties.some((p) => p.id === property.id);
 
@@ -283,7 +277,7 @@ export default function Browse() {
                       className="browse-property group"
                     >
                       <div className="browse-property-photo">
-                        {coverImg ? <img src={coverImg} alt={property.name} onError={(event) => { event.currentTarget.hidden = true; }} className="browse-property-image" /> : <span className="browse-no-image">No property image</span>}
+                        <ListingPhotoCarousel images={property.images} name={property.name} className="browse-property-image" />
                         <div className="browse-type-label">
                           {property.type?.replace('_', ' ')}
                         </div>

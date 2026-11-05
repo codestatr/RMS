@@ -31,8 +31,17 @@ export const authService = {
     return res.data;
   },
 
-  async updateProfile(userId, data) {
-    const res = await api.put(`/users/${userId}`, data);
+  async updateProfile(data) {
+    const res = await api.put('/users/me', data);
+    return res.data;
+  },
+
+  async uploadProfilePhoto(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await api.post('/users/me/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return res.data;
   },
 

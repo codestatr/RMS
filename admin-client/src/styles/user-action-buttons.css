@@ -1,0 +1,194 @@
+/* Shared branded table headers for the Admin and POS workspaces. */
+.admin-table thead th,
+.payments-table thead th,
+.bookings-table thead th,
+.shifts-table thead th,
+.transactions-table thead th {
+  border-bottom-color: color-mix(in srgb, var(--brand-color, #176b52) 78%, #111);
+  background: var(--brand-color, #176b52);
+  color: var(--brand-contrast, #fff);
+}
+
+.admin-table thead th:first-child,
+.payments-table thead th:first-child,
+.bookings-table thead th:first-child,
+.shifts-table thead th:first-child,
+.transactions-table thead th:first-child { border-top-left-radius: 9px; }
+
+.admin-table thead th:last-child,
+.payments-table thead th:last-child,
+.bookings-table thead th:last-child,
+.shifts-table thead th:last-child,
+.transactions-table thead th:last-child { border-top-right-radius: 9px; }
+
+/* Compact, deliberate table actions for staff and customer management. */
+
+.admin-table .staff-status-action,
+.admin-table .customer-action-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.admin-table .staff-status-action:focus-visible,
+.admin-table .customer-action-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--cozystay-accent, #176b52) 22%, transparent);
+  outline-offset: 2px;
+}
+
+.admin-table .staff-status-action.is-active,
+.admin-table .customer-action-button.flag {
+  border-color: #efd5d1;
+  background: #fff8f7;
+  color: #9d4037;
+}
+
+.admin-table .staff-status-action.is-active:hover,
+.admin-table .customer-action-button.flag:hover {
+  border-color: #dfb7b1;
+  background: #fbedeb;
+  color: #81352e;
+}
+
+.admin-table .staff-status-action.is-inactive,
+.admin-table .customer-action-button.restore {
+  border-color: #c9e4d5;
+  background: #f3faf6;
+  color: #176b52;
+}
+
+.admin-table .staff-status-action.is-inactive:hover,
+.admin-table .customer-action-button.restore:hover {
+  border-color: #a9d2bc;
+  background: #e8f5ed;
+  color: #11563f;
+}
+
+.admin-table .customer-action-group {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.admin-table .customer-action-button.history {
+  border-color: #d5e1da;
+  background: #fff;
+  color: #43564a;
+}
+
+.admin-table .customer-action-button.history:hover {
+  border-color: #adc5b5;
+  background: #f4f8f5;
+  color: #176b52;
+}
+
+.admin-table .staff-status-action:active,
+.admin-table .customer-action-button:active { transform: translateY(1px); }
+
+.admin-table .staff-status-action:disabled,
+.admin-table .customer-action-button:disabled { cursor: wait; opacity: .62; }
+
+@media (max-width: 900px) {
+  .admin-table .customer-action-group { flex-wrap: wrap; }
+}
+
+.customer-history-overlay {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(22, 31, 26, .48);
+  backdrop-filter: blur(3px);
+}
+
+.customer-history-dialog {
+  width: min(100%, 560px);
+  padding: 24px;
+  border: 1px solid #e0e7e1;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(17, 31, 22, .22);
+  color: #243229;
+}
+
+.customer-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #edf1ed;
+}
+
+.customer-history-eyebrow {
+  display: block;
+  margin-bottom: 5px;
+  color: #718077;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.customer-history-header h3 { color: #243229; font-size: 1.2rem; font-weight: 800; line-height: 1.25; }
+.customer-history-header p { margin-top: 5px; color: #738078; font-size: .8rem; }
+
+.customer-history-dialog .customer-history-close {
+  display: inline-grid;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #e1e8e2;
+  border-radius: 9px;
+  background: #f7f9f7;
+  color: #65736a;
+  cursor: pointer;
+}
+
+.customer-history-dialog .customer-history-close:hover { border-color: #c9d7cc; background: #eef4ef; color: #243229; }
+
+.customer-history-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 20px; }
+
+.customer-history-metric {
+  display: flex;
+  min-height: 94px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 16px;
+  border: 1px solid #e5ebe6;
+  border-radius: 11px;
+  background: #f8faf8;
+}
+
+.customer-history-metric span { color: #718077; font-size: .72rem; font-weight: 650; }
+.customer-history-metric strong { color: #243229; font-size: 1.15rem; font-weight: 800; }
+.customer-history-metric strong.is-accent { color: #176b52; font-size: 1rem; }
+.customer-history-metric strong.is-rating { color: #9a6b18; }
+.customer-history-message { margin-top: 20px; color: #65736a; font-size: .82rem; }
+.customer-history-message.is-error { color: #a54239; }
+
+@media (max-width: 560px) {
+  .customer-history-overlay { padding: 14px; }
+  .customer-history-dialog { padding: 18px; border-radius: 13px; }
+  .customer-history-metrics { grid-template-columns: 1fr; gap: 9px; }
+  .customer-history-metric { min-height: 76px; }
+}
