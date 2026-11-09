@@ -7,7 +7,8 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon --exec node src/app.js",
+    "dev": "node src/app.js",
+    "dev:watch": "nodemon --watch src --ext js,mjs,json --exec node src/app.js",
     "test": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --runInBand --testPathIgnorePatterns=backend/test.js",
     "test:watch": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js --watch --testPathIgnorePatterns=backend/test.js",
     "lint": "eslint src/**/*.js",

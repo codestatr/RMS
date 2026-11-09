@@ -6,8 +6,11 @@ const yieldToMainLoop = () => new Promise((resolve) => setImmediate(resolve));
 
 class SyncManager {
   constructor(token = '') {
+    const configuredApiUrl = process.env.REACT_APP_API_URL || process.env.VITE_API_URL || 'http://127.0.0.1:3000/api';
+    const apiUrl = configuredApiUrl.replace(/\/\/localhost(?=[:/])/i, '//127.0.0.1');
     this.apiClient = axios.create({
-      baseURL: process.env.REACT_APP_API_URL || process.env.VITE_API_URL || 'http://localhost:3000/api',
+      // The backend binds to IPv4 (0.0.0.0). Node may resolve localhost to ::1 first on Windows.
+      baseURL: apiUrl,
       timeout: 10000,
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
