@@ -79,12 +79,12 @@ router.post(
 router.get(
   '/',
   authenticate,
-  requireRole('admin', 'cashier'),
+  requireRole('admin', 'cashier', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, cashierId, status, startDate, endDate } = req.query;
 
     // Cashiers only see their own shifts unless admin
-    const targetCashier = req.user.role === 'admin' ? cashierId : req.user.id;
+    const targetCashier = ['admin', 'property_owner'].includes(req.user.role) ? cashierId : req.user.id;
 
     const result = await ShiftService.getAllShifts(
       { cashierId: targetCashier, status, startDate, endDate },

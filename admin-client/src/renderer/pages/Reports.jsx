@@ -8,6 +8,7 @@ import axios from 'axios';
 import { getBranding } from '../utils/branding';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const authHeaders = () => ({ Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || ''}` });
 
 function getDateBounds(range) {
   const now = new Date();
@@ -30,6 +31,9 @@ export default function Reports() {
   const [report, setReport] = useState({ revenue: [], payments: [], topProperties: [] });
   const [reportLoading, setReportLoading] = useState(true);
   const [reportError, setReportError] = useState('');
+  const [reportUpdatedAt, setReportUpdatedAt] = useState(null);
+  const [exportError, setExportError] = useState('');
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     const updateBranding = () => setBranding(getBranding());
@@ -43,25 +47,33 @@ export default function Reports() {
 
   useEffect(() => {
     let cancelled = false;
-    const headers = { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` };
+    let requestInFlight = false;
+    const headers = authHeaders();
     const params = { startDate: dateBounds.startDate, endDate: dateBounds.endDate };
-    setReportLoading(true);
-    setReportError('');
-    Promise.all([
-      axios.get(`${API_URL}/reports/revenue`, { headers, params }),
-      axios.get(`${API_URL}/reports/payments`, { headers, params }),
-      axios.get(`${API_URL}/reports/top-properties`, { headers, params: { ...params, limit: 10 } }),
-    ]).then(([revenueResponse, paymentResponse, propertyResponse]) => {
-      if (cancelled) return;
-      setReport({
-        revenue: revenueResponse.data?.data?.revenue || [],
-        payments: paymentResponse.data?.data?.byMethod || [],
-        topProperties: propertyResponse.data?.data || [],
-      });
-    }).catch((error) => {
-      if (!cancelled) setReportError(error.response?.data?.error || 'Unable to load live financial reports.');
-    }).finally(() => { if (!cancelled) setReportLoading(false); });
-    return () => { cancelled = true; };
+    const refresh = () => {
+      if (requestInFlight) return;
+      requestInFlight = true;
+      setReportLoading(true);
+      setReportError('');
+      Promise.all([
+        axios.get(`${API_URL}/reports/revenue`, { headers, params }),
+        axios.get(`${API_URL}/reports/payments`, { headers, params }),
+        axios.get(`${API_URL}/reports/top-properties`, { headers, params: { ...params, limit: 10 } }),
+      ]).then(([revenueResponse, paymentResponse, propertyResponse]) => {
+        if (cancelled) return;
+        setReport({
+          revenue: revenueResponse.data?.data?.revenue || [],
+          payments: paymentResponse.data?.data?.byMethod || [],
+          topProperties: propertyResponse.data?.data || [],
+        });
+        setReportUpdatedAt(new Date());
+      }).catch((error) => {
+        if (!cancelled) setReportError(error.response?.data?.error || 'Unable to load live financial reports.');
+      }).finally(() => { requestInFlight = false; if (!cancelled) setReportLoading(false); });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 30000);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, [dateBounds.startDate, dateBounds.endDate]);
 
   const formatMoney = (value) => `KES ${Number(value || 0).toLocaleString()}`;
@@ -93,21 +105,39 @@ export default function Reports() {
   const handleExportPDF = async () => {
     const branding = getBranding();
     const { startDate, endDate } = getDateBounds(dateRange);
-    const response = await axios.post(
-      `${API_URL}/reports/export`,
-      { reportType: 'financial', format: 'pdf', startDate, endDate, branding },
-      {
-        responseType: 'blob',
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
-      },
-    );
-    const url = URL.createObjectURL(response.data);
-    const link = document.createElement('a');
-    link.href = url;
-    const safeBrand = branding.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'Business';
-    link.download = `${safeBrand}-Financial-Report-${startDate}-to-${endDate}.pdf`;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setExportError('');
+    setExportingPdf(true);
+    try {
+      const response = await axios.post(
+        `${API_URL}/reports/export`,
+        { reportType: 'financial', format: 'pdf', startDate, endDate },
+        { responseType: 'blob', headers: authHeaders() },
+      );
+      if (!response.data || response.data.size === 0 || !String(response.headers?.['content-type'] || '').includes('application/pdf')) {
+        const responseText = response.data instanceof Blob ? await response.data.text() : '';
+        throw new Error(responseText || 'The server did not return a PDF document.');
+      }
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeBrand = branding.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'Business';
+      link.download = `${safeBrand}-Financial-Report-${startDate}-to-${endDate}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      let message = error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to export the PDF report.';
+      if (error.response?.data instanceof Blob) {
+        try {
+          const body = JSON.parse(await error.response.data.text());
+          message = body.message || body.error || message;
+        } catch { /* Keep the original error message. */ }
+      }
+      setExportError(message);
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   return (
@@ -141,7 +171,7 @@ export default function Reports() {
             <FaChartBar className="text-amber-500" /> Financial Analytics &amp; Occupancy Reports
           </h2>
           <p className="text-xs text-neutral-500">
-            Export tax summaries, analyze payment channels, and audit rental revenue in KES.
+            System-wide revenue and payment analytics. Data refreshes every 30 seconds{reportUpdatedAt ? ` · Updated ${reportUpdatedAt.toLocaleTimeString()}` : ''}.
           </p>
         </div>
 
@@ -163,8 +193,8 @@ export default function Reports() {
           >
             <FaFileExport /> Export CSV
           </button>
-          <button onClick={handleExportPDF} className="btn-primary">
-            <FaFileExport /> Export PDF
+          <button onClick={handleExportPDF} disabled={exportingPdf} className="btn-primary">
+            <FaFileExport /> {exportingPdf ? 'Generating PDF…' : 'Export PDF'}
           </button>
           <button
             onClick={() => window.print()}
@@ -176,6 +206,7 @@ export default function Reports() {
       </div>
 
       {reportError && <div className="login-error" role="alert">{reportError}</div>}
+      {exportError && <div className="login-error" role="alert">PDF export failed: {exportError}</div>}
       {reportLoading && <p className="text-sm text-neutral-500" role="status">Loading live report data…</p>}
 
       {/* Summary Highlights */}

@@ -6,7 +6,7 @@ import '../../styles/shifts.css'
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 
 const authConfig = () => ({
-  headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
+  headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || ''}` },
 })
 
 /**

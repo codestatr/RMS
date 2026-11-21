@@ -25,6 +25,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 768,
+    backgroundColor: '#f8fafc',
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.cjs'),
       nodeIntegration: false,
@@ -34,14 +35,17 @@ function createWindow() {
     icon: path.join(__dirname, '../../assets/icon.png'),
   })
 
-  mainWindow.loadFile(path.join(__dirname, '../index.html'))
+  mainWindow.loadFile(path.join(__dirname, '../index.html')).catch((error) => {
+    console.error('Could not load the Electron application:', error)
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
+  })
 
   mainWindow.on('closed', () => {
     mainWindow = null
   })
 }
 
-app.on('ready', createWindow)
+app.whenReady().then(createWindow)
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

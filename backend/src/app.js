@@ -38,6 +38,7 @@ import { processDueGuestMessages } from './services/GuestMessagingService.js';
 // Import error handling and database
 import { errorHandler } from './utils/errors.js';
 import { initializeDatabase } from './database/db.js';
+import { captureOwnerActivity } from './services/OwnerActivityService.js';
 
 // Initialize Express app
 const app = express();
@@ -87,6 +88,7 @@ app.use('/api/', limiter);
 // Body parser
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/api', captureOwnerActivity);
 
 // API Routes
 app.use('/api/auth', authRoutes);

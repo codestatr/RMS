@@ -8,7 +8,7 @@ const router = express.Router();
 router.get(
   '/',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { limit = 50, entityType } = req.query;
     const params = [];

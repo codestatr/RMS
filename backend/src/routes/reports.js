@@ -24,7 +24,7 @@ router.get(
 router.get(
   '/dashboard',
   authenticate,
-  requireRole('admin', 'cashier'),
+  requireRole('admin', 'cashier', 'property_owner'),
   asyncHandler(async (req, res) => {
     const result = req.user.role === 'cashier'
       ? await ReportService.getCashierDashboardKPIs(req.user.id)
@@ -45,7 +45,7 @@ router.get(
 router.get(
   '/revenue',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { startDate, endDate, propertyId } = req.query
 
@@ -75,7 +75,7 @@ router.get(
 router.get(
   '/occupancy',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { startDate, endDate, propertyId } = req.query
 
@@ -100,7 +100,7 @@ router.get(
 router.get(
   '/bookings',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const result = await ReportService.getBookingsByStatus()
 
@@ -122,7 +122,7 @@ router.get(
 router.get(
   '/payments',
   authenticate,
-  requireRole('admin', 'cashier'),
+  requireRole('admin', 'cashier', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query
 
@@ -151,7 +151,7 @@ router.get(
 router.get(
   '/outstanding',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const result = await ReportService.getOutstandingBalances()
 
@@ -173,7 +173,7 @@ router.get(
 router.get(
   '/top-properties',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { limit = 10, month, startDate, endDate } = req.query
 
@@ -194,7 +194,7 @@ router.get(
 router.get(
   '/customer-activity/:customerId',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const result = await ReportService.getCustomerActivity(req.params.customerId)
 
@@ -213,7 +213,7 @@ router.get(
 router.post(
   '/export',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { reportType, format, startDate, endDate } = req.body
 

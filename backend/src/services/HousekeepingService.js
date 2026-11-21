@@ -5,7 +5,10 @@ import { ValidationError, NotFoundError } from '../utils/errors.js'
 class HousekeepingService {
   async getWorkboard(user) {
     const whereTask = user.role === 'housekeeping' ? 'AND (t.assigned_to = ? OR t.assigned_to IS NULL)' : ''
-    const taskParams = user.role === 'housekeeping' ? [user.id] : []
+    const scoped = user.ownerScopedStaff ? user.propertyIds : null
+    const propertyClause = Array.isArray(scoped) ? (scoped.length ? ` AND p.id IN (${scoped.map(() => '?').join(',')})` : ' AND 1 = 0') : ''
+    const taskPropertyClause = Array.isArray(scoped) ? (scoped.length ? ` AND t.property_id IN (${scoped.map(() => '?').join(',')})` : ' AND 1 = 0') : ''
+    const taskParams = [...(user.role === 'housekeeping' ? [user.id] : []), ...(scoped || [])]
     const [tasks, units, properties, history] = await Promise.all([
       query(`SELECT t.*, p.name AS property_name, p.address, p.city, p.housekeeping_status,
                     assigned.first_name AS assigned_first_name, assigned.last_name AS assigned_last_name,
@@ -13,20 +16,20 @@ class HousekeepingService {
              FROM housekeeping_tasks t JOIN properties p ON p.id = t.property_id
              LEFT JOIN users assigned ON assigned.id = t.assigned_to
              LEFT JOIN users reporter ON reporter.id = t.created_by
-             WHERE t.status <> 'completed' ${whereTask}
+             WHERE t.status <> 'completed' ${whereTask} ${taskPropertyClause}
              ORDER BY FIELD(t.priority, 'urgent', 'high', 'normal', 'low'), t.created_at ASC LIMIT 200`, taskParams),
       query(`SELECT p.id, p.name, p.type, p.address, p.city, p.housekeeping_status, p.status AS listing_status, p.updated_at,
                     (SELECT b.check_out_date FROM bookings b WHERE b.property_id = p.id AND b.status = 'checked_in' ORDER BY b.check_out_date LIMIT 1) AS occupied_until,
                     (SELECT COUNT(*) FROM housekeeping_tasks t WHERE t.property_id = p.id AND t.status <> 'completed') AS open_task_count
              FROM properties p
-             WHERE p.housekeeping_status IN ('dirty', 'maintenance') OR p.status = 'maintenance'
+             WHERE (p.housekeeping_status IN ('dirty', 'maintenance') OR p.status = 'maintenance') ${propertyClause}
              ORDER BY CASE WHEN p.housekeeping_status = 'maintenance' OR p.status = 'maintenance' THEN 0 ELSE 1 END, p.updated_at ASC LIMIT 200`),
-      query("SELECT id, name, address, city FROM properties WHERE status <> 'inactive' ORDER BY name LIMIT 500"),
+      query(`SELECT id, name, address, city FROM properties p WHERE status <> 'inactive' ${propertyClause} ORDER BY name LIMIT 500`, scoped || []),
       query(`SELECT t.id, t.task_type, t.title, t.status, t.completed_at, t.property_id, p.name AS property_name
              FROM housekeeping_tasks t JOIN properties p ON p.id = t.property_id
-             WHERE t.status = 'completed' AND t.updated_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+             WHERE t.status = 'completed' AND t.updated_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) ${taskPropertyClause}
              ${user.role === 'housekeeping' ? 'AND (t.assigned_to = ? OR t.completed_by = ?)' : ''}
-             ORDER BY t.completed_at DESC LIMIT 20`, user.role === 'housekeeping' ? [user.id, user.id] : []),
+             ORDER BY t.completed_at DESC LIMIT 20`, [...(scoped || []), ...(user.role === 'housekeeping' ? [user.id, user.id] : [])]),
     ])
     return { tasks, units, properties, history }
   }
@@ -61,15 +64,16 @@ class HousekeepingService {
   async updateTask(taskId, data, user) {
     const [task] = await query('SELECT * FROM housekeeping_tasks WHERE id = ?', [taskId])
     if (!task) throw new NotFoundError('Housekeeping task')
+    if (user.ownerScopedStaff && !user.propertyIds.includes(task.property_id)) throw new ValidationError('Task is outside your assigned properties')
     if (user.role === 'housekeeping' && task.assigned_to && task.assigned_to !== user.id) {
       throw new ValidationError('This task is assigned to another team member')
     }
     const status = data?.status
     if (!['open', 'in_progress', 'completed'].includes(status)) throw new ValidationError('Invalid task status')
-    if (task.assigned_to && data?.assignedTo && !['admin', 'cashier'].includes(user.role)) {
+    if (task.assigned_to && data?.assignedTo && !['admin', 'cashier', 'property_owner'].includes(user.role)) {
       throw new ValidationError('Only a manager can reassign a task')
     }
-    const assignedTo = ['admin', 'cashier'].includes(user.role) ? (data?.assignedTo || task.assigned_to) : (user.role === 'housekeeping' && status !== 'open' ? user.id : task.assigned_to)
+    const assignedTo = ['admin', 'cashier', 'property_owner'].includes(user.role) ? (data?.assignedTo || task.assigned_to) : (user.role === 'housekeeping' && status !== 'open' ? user.id : task.assigned_to)
     if (assignedTo) {
       const [assignee] = await query("SELECT id FROM users WHERE id = ? AND role = 'housekeeping' AND status = 'active'", [assignedTo])
       if (!assignee) throw new ValidationError('Choose an active housekeeping account')

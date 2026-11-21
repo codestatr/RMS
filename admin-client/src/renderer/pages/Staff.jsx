@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { FaUserPlus, FaUsers, FaUserCheck, FaUserTimes, FaKey } from 'react-icons/fa';
+import React, { useState, useEffect, useRef } from 'react';
+import { FaUserPlus, FaUsers, FaUserCheck, FaKey } from 'react-icons/fa';
 import PasswordInput from '../components/PasswordInput';
 import axios from 'axios';
 
@@ -7,8 +7,10 @@ export default function Staff() {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [staffError, setStaffError] = useState('');
-  const [updatingStaffIds, setUpdatingStaffIds] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatingStaff, setIsCreatingStaff] = useState(false);
+  const [createStaffError, setCreateStaffError] = useState('');
+  const creatingStaffRef = useRef(false);
 
   // New staff form state
   const [firstName, setFirstName] = useState('');
@@ -28,10 +30,6 @@ export default function Staff() {
     setRole('cashier');
     setPassword('');
   };
-
-  useEffect(() => {
-    if (!isModalOpen) resetStaffForm();
-  }, [isModalOpen]);
 
   useEffect(() => {
     loadStaff();
@@ -70,51 +68,40 @@ export default function Staff() {
 
   const handleCreateStaff = async (e) => {
     e.preventDefault();
+    if (creatingStaffRef.current) return;
+
     const hasLowercase = [...password].some((character) => character >= 'a' && character <= 'z');
     const hasUppercase = [...password].some((character) => character >= 'A' && character <= 'Z');
     const hasNumber = [...password].some((character) => character >= '0' && character <= '9');
     const hasSpecialCharacter = [...password].some((character) => '@$!%*?&'.includes(character));
     if (password.length < 8 || !hasLowercase || !hasUppercase || !hasNumber || !hasSpecialCharacter) {
-      alert('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.');
+      setCreateStaffError('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.');
       return;
     }
+
+    creatingStaffRef.current = true;
+    setIsCreatingStaff(true);
+    setCreateStaffError('');
     try {
       await axios.post(`${API_URL}/users`, {
-        firstName,
-        lastName,
-        email,
-        phone,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
         role,
         password,
       }, {
         headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || ''}` },
       });
-      alert('Staff account created successfully!');
-      setIsModalOpen(false);
       resetStaffForm();
-      await loadStaff();
+      setIsModalOpen(false);
+      // Keep the create flow ready for another staff member while the table refreshes.
+      void loadStaff();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to create staff account');
-    }
-  };
-
-  const handleToggleStatus = async (member) => {
-    const isActive = member.status === 'active';
-    const action = isActive ? 'deactivate' : 'reactivate';
-    const token = sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || '';
-    setUpdatingStaffIds((ids) => [...ids, member.id]);
-    setStaffError('');
-    try {
-      await axios.post(`${API_URL}/users/${member.id}/${action}`, {}, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setStaffList((members) => members.map((s) => (
-        s.id === member.id ? { ...s, status: isActive ? 'inactive' : 'active' } : s
-      )));
-    } catch (error) {
-      setStaffError(error.response?.data?.message || error.response?.data?.error || 'Unable to update this staff account.');
+      setCreateStaffError(err.response?.data?.error || err.response?.data?.message || 'Failed to create staff account. Please try again.');
     } finally {
-      setUpdatingStaffIds((ids) => ids.filter((id) => id !== member.id));
+      creatingStaffRef.current = false;
+      setIsCreatingStaff(false);
     }
   };
 
@@ -127,8 +114,11 @@ export default function Staff() {
         </div>
 
         <button
+          type="button"
+          disabled={isCreatingStaff}
           onClick={() => {
             resetStaffForm();
+            setCreateStaffError('');
             setIsModalOpen(true);
           }}
           className="btn-amber flex items-center gap-2 text-xs"
@@ -147,7 +137,6 @@ export default function Staff() {
               <th>Phone</th>
               <th>Role</th>
               <th>Status</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -169,19 +158,6 @@ export default function Staff() {
                   <span className={member.status === 'active' ? 'badge-confirmed' : 'badge-inactive'}>
                     {member.status}
                   </span>
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleStatus(member)}
-                    disabled={updatingStaffIds.includes(member.id)}
-                    className={`staff-status-action ${member.status === 'active' ? 'is-active' : 'is-inactive'}`}
-                  >
-                    {updatingStaffIds.includes(member.id) ? 'Saving…' : <>
-                      {member.status === 'active' ? <FaUserTimes aria-hidden="true" /> : <FaUserCheck aria-hidden="true" />}
-                      {member.status === 'active' ? 'Deactivate' : 'Activate'}
-                    </>}
-                  </button>
                 </td>
               </tr>
             ))}
@@ -245,19 +221,24 @@ export default function Staff() {
               </div>
 
               <div className="staff-access-note">The staff member should change this temporary password after their first sign-in.</div>
+              {createStaffError && <div className="staff-create-error" role="alert">{createStaffError}</div>}
 
               <div className="staff-form-actions">
                 <button
                   type="button"
+                  disabled={isCreatingStaff}
                   onClick={() => {
                     resetStaffForm();
+                    setCreateStaffError('');
                     setIsModalOpen(false);
                   }}
                   className="secondary-action"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="primary-action"><FaUserCheck /> Save Account</button>
+                <button type="submit" disabled={isCreatingStaff} className="primary-action">
+                  <FaUserCheck /> {isCreatingStaff ? 'Saving account…' : 'Save Account'}
+                </button>
               </div>
             </form>
           </div>

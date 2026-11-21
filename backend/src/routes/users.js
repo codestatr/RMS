@@ -3,8 +3,15 @@ import UserService from '../services/UserService.js'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { asyncHandler, ValidationError } from '../utils/errors.js'
 import { uploadPropertyImage } from '../middleware/propertyImageUpload.js'
+import { query } from '../database/db.js'
 
 const router = express.Router()
+
+async function rejectOwnerManagedTarget(userId, actorRole) {
+  if (actorRole === 'property_owner') return
+  const [assignment] = await query('SELECT owner_id FROM owner_staff_assignments WHERE staff_id = ?', [userId])
+  if (assignment) throw new ValidationError('Only the assigned property owner can deactivate or reactivate this account')
+}
 
 /**
  * POST /api/users
@@ -13,7 +20,7 @@ const router = express.Router()
 router.post(
   '/',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { email, password, firstName, lastName, phone, role } = req.body
     const result = await UserService.register({ email, password, firstName, lastName, phone, role })
@@ -33,7 +40,7 @@ router.post(
 router.get(
   '/',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, role, status } = req.query
 
@@ -113,7 +120,7 @@ router.put(
   authenticate,
   asyncHandler(async (req, res) => {
     // Users can only update their own profile, admins can update anyone
-    if (req.user.id !== req.params.id && req.user.role !== 'admin') {
+    if (req.user.id !== req.params.id && !['admin', 'property_owner'].includes(req.user.role)) {
       throw new ValidationError('You can only update your own profile')
     }
 
@@ -135,11 +142,11 @@ router.post(
   '/:id/deactivate',
   authenticate,
   asyncHandler(async (req, res) => {
-    if (req.user.id !== req.params.id && req.user.role !== 'admin') {
-      throw new ValidationError('You can only deactivate your own account')
-    }
+    if (req.user.role !== 'property_owner') throw new ValidationError('Only a property owner can deactivate accounts')
+    if (req.params.id === req.user.id) throw new ValidationError('You cannot deactivate your own property-owner account')
 
     const result = await UserService.deactivateUser(req.params.id)
+    await query("UPDATE owner_staff_assignments SET status = 'inactive' WHERE staff_id = ?", [req.params.id])
 
     res.json({
       success: true,
@@ -155,8 +162,9 @@ router.post(
 router.post(
   '/:id/suspend',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
+    await rejectOwnerManagedTarget(req.params.id, req.user.role)
     const result = await UserService.suspendUser(req.params.id)
 
     res.json({
@@ -173,9 +181,13 @@ router.post(
 router.post(
   '/:id/reactivate',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
+    await rejectOwnerManagedTarget(req.params.id, req.user.role)
     const result = await UserService.reactivateUser(req.params.id)
+    if (req.user.role === 'property_owner') {
+      await query("UPDATE owner_staff_assignments SET status = 'active' WHERE staff_id = ?", [req.params.id])
+    }
 
     res.json({
       success: true,
@@ -191,8 +203,9 @@ router.post(
 router.delete(
   '/:id',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
+    await rejectOwnerManagedTarget(req.params.id, req.user.role)
     const result = await UserService.deactivateUser(req.params.id)
 
     res.status(204).json({

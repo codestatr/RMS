@@ -26,7 +26,8 @@ router.get(
       maxPrice: maxPrice || null,
       rating: rating || null,
       search: search || null,
-      includeInactive: includeInactive === 'true' && req.user?.role === 'admin',
+      includeInactive: includeInactive === 'true' && ['admin', 'property_owner'].includes(req.user?.role),
+      propertyIds: req.user?.ownerScopedStaff ? req.user.propertyIds : null,
     }
 
     const result = await PropertyService.getAllProperties(filters, page, limit)
@@ -93,6 +94,9 @@ router.get(
   '/:id',
   optionalAuthenticate,
   asyncHandler(async (req, res) => {
+    if (req.user?.ownerScopedStaff && !req.user.propertyIds.includes(req.params.id)) {
+      throw new ValidationError('This property is not assigned to your account')
+    }
     const result = await PropertyService.getPropertyById(req.params.id)
 
     res.json({
@@ -111,11 +115,12 @@ router.put(
   '/:id',
   authenticate,
   asyncHandler(async (req, res) => {
+    if (req.user.ownerScopedStaff) throw new ValidationError('Only the property owner can change listing details')
     const result = await PropertyService.updateProperty(
       req.params.id,
       req.user.id,
       req.body,
-      req.user.role === 'admin'
+      ['admin', 'property_owner'].includes(req.user.role)
     )
 
     res.json({
@@ -134,7 +139,8 @@ router.delete(
   '/:id',
   authenticate,
   asyncHandler(async (req, res) => {
-    const result = await PropertyService.deleteProperty(req.params.id, req.user.id, req.user.role === 'admin')
+    if (req.user.ownerScopedStaff) throw new ValidationError('Only the property owner can remove a listing')
+    const result = await PropertyService.deleteProperty(req.params.id, req.user.id, ['admin', 'property_owner'].includes(req.user.role))
 
     res.json({
       success: true,
@@ -175,6 +181,9 @@ router.patch(
   authenticate,
   requireRole('admin', 'cashier', 'housekeeping'),
   asyncHandler(async (req, res) => {
+    if (req.user.ownerScopedStaff && !req.user.propertyIds.includes(req.params.id)) {
+      throw new ValidationError('This property is not assigned to your account')
+    }
     const result = await HousekeepingService.updatePropertyStatus(
       req.params.id,
       req.body?.housekeepingStatus,
@@ -204,6 +213,7 @@ router.post(
   authenticate,
   uploadPropertyImage,
   asyncHandler(async (req, res) => {
+    if (req.user?.ownerScopedStaff) throw new ValidationError('Only the property owner can upload listing images')
     const imageUrl = req.file?.path || req.body.imageUrl
     const { isCover, displayOrder } = req.body
 
@@ -234,7 +244,7 @@ router.get(
   '/owner/:ownerId',
   authenticate,
   asyncHandler(async (req, res) => {
-    if (req.user.role !== 'admin' && req.user.id !== req.params.ownerId) {
+    if (!['admin', 'property_owner'].includes(req.user.role) && req.user.id !== req.params.ownerId) {
       throw new ValidationError('You can only view your own properties')
     }
     const { page = 1, limit = 20 } = req.query

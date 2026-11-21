@@ -16,6 +16,7 @@ import {
   sanitizeInput,
 } from '../utils/validation.js'
 import NotificationService from './NotificationService.js'
+import { recordOwnerLogin } from './OwnerActivityService.js'
 
 class UserService {
   /**
@@ -23,7 +24,8 @@ class UserService {
    */
   async register(data) {
     const sanitized = sanitizeInput(data)
-    const { email, password, firstName, lastName, phone, role = 'customer' } = sanitized
+    const { password, firstName, lastName, phone, role = 'customer' } = sanitized
+    const email = String(sanitized.email || '').trim().toLowerCase()
 
     // Validate input
     if (!validateEmail(email)) {
@@ -146,6 +148,10 @@ class UserService {
       role: user.role,
     })
 
+    await recordOwnerLogin(user.id, user.role).catch((error) => {
+      console.warn('Could not record owner login activity:', error.message)
+    })
+
     const refreshToken = generateRefreshToken({
       id: user.id,
       email: user.email,
@@ -198,6 +204,10 @@ class UserService {
       id: user.id,
       email: user.email,
       role: user.role,
+    })
+
+    await recordOwnerLogin(user.id, user.role).catch((error) => {
+      console.warn('Could not record owner login activity:', error.message)
     })
 
     const refreshToken = generateRefreshToken({
@@ -328,7 +338,7 @@ class UserService {
 
     const users = await query(
       `SELECT id, email, first_name FROM users
-       WHERE email = ? AND role IN ('admin', 'cashier', 'housekeeping', 'catering') AND status = 'active'`,
+       WHERE email = ? AND role IN ('admin', 'property_owner', 'cashier', 'housekeeping', 'catering') AND status = 'active'`,
       [normalizedEmail]
     )
     if (!users.length) {
@@ -366,7 +376,7 @@ class UserService {
     }
 
     const users = await query(
-      `SELECT id FROM users WHERE email = ? AND role IN ('admin', 'cashier', 'housekeeping', 'catering') AND status = 'active'`,
+      `SELECT id FROM users WHERE email = ? AND role IN ('admin', 'property_owner', 'cashier', 'housekeeping', 'catering') AND status = 'active'`,
       [normalizedEmail]
     )
     if (!users.length) throw new UnauthorizedError('Invalid or expired recovery code')

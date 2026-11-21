@@ -43,6 +43,11 @@ export default function PropertyDetail() {
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState(true);
   const [conflictingBookings, setConflictingBookings] = useState([]);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [calendarBookings, setCalendarBookings] = useState([]);
 
   // Review Modal State
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -115,6 +120,18 @@ export default function PropertyDetail() {
     if (id) verifyDates();
   }, [id, checkInDate, checkOutDate]);
 
+  useEffect(() => {
+    if (!id || !calendarMonth) return;
+    const [year, month] = calendarMonth.split('-').map(Number);
+    const startDate = `${calendarMonth}-01`;
+    const endDate = `${year + (month === 12 ? 1 : 0)}-${String(month === 12 ? 1 : month + 1).padStart(2, '0')}-01`;
+    let active = true;
+    propertyService.getAvailabilityCalendar(id, startDate, endDate)
+      .then((response) => { if (active) setCalendarBookings(response.data?.bookings || []); })
+      .catch(() => { if (active) setCalendarBookings([]); });
+    return () => { active = false; };
+  }, [id, calendarMonth]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
@@ -139,6 +156,15 @@ export default function PropertyDetail() {
     : [];
   const amenities = Array.isArray(property.amenities) ? property.amenities : [];
   const guestCapacity = Math.max(1, Number(property.capacity) || 1);
+  const [calendarYear, calendarMonthNumber] = calendarMonth.split('-').map(Number);
+  const calendarDays = new Date(calendarYear, calendarMonthNumber, 0).getDate();
+  const calendarOffset = new Date(calendarYear, calendarMonthNumber - 1, 1).getDay();
+  const dayKey = (day) => `${calendarMonth}-${String(day).padStart(2, '0')}`;
+  const isCalendarDayBooked = (day) => {
+    const key = dayKey(day);
+    return calendarBookings.some((booking) => key >= String(booking.check_in_date).slice(0, 10) && key < String(booking.check_out_date).slice(0, 10));
+  };
+  const isCalendarMaintenance = property.status === 'maintenance' || property.housekeepingStatus === 'maintenance' || property.housekeeping_status === 'maintenance';
 
   const nights =
     checkInDate && checkOutDate
@@ -435,6 +461,34 @@ export default function PropertyDetail() {
                     />
                   </div>
                 </div>
+
+                <section aria-label="Monthly availability calendar" className="rounded-2xl border border-neutral-200 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <strong className="text-xs text-neutral-800">Date availability</strong>
+                    <input aria-label="Availability calendar month" type="month" value={calendarMonth} onChange={(event) => setCalendarMonth(event.target.value)} className="rounded-lg border border-neutral-200 px-2 py-1 text-xs" />
+                  </div>
+                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-neutral-400">
+                    {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((day) => <span key={day} className="py-1 font-bold">{day}</span>)}
+                    {Array.from({ length: calendarOffset }, (_, index) => <span key={`blank-${index}`} />)}
+                    {Array.from({ length: calendarDays }, (_, index) => {
+                      const day = index + 1;
+                      const booked = isCalendarDayBooked(day);
+                      const maintenance = isCalendarMaintenance;
+                      const dateKey = dayKey(day);
+                      const now = new Date();
+                      const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      const past = dateKey < todayKey;
+                      return <button key={day} type="button" disabled={booked || maintenance || past} title={`${dateKey}: ${booked ? 'Booked' : maintenance ? 'Under maintenance' : past ? 'Past date' : 'Available'}`} onClick={() => {
+                        const stayNights = checkInDate && checkOutDate && checkOutDate > checkInDate ? Math.max(1, Math.round((new Date(checkOutDate) - new Date(checkInDate)) / 86400000)) : 1;
+                        setCheckInDate(dateKey);
+                        const checkout = new Date(`${dateKey}T00:00:00`);
+                        checkout.setDate(checkout.getDate() + stayNights);
+                        setCheckOutDate(`${checkout.getFullYear()}-${String(checkout.getMonth() + 1).padStart(2, '0')}-${String(checkout.getDate()).padStart(2, '0')}`);
+                      }} className={`rounded-lg py-1.5 text-[11px] font-bold disabled:cursor-not-allowed ${booked ? 'bg-rose-100 text-rose-700' : maintenance ? 'bg-amber-100 text-amber-700' : past ? 'text-neutral-300' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}>{day}</button>;
+                    })}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-neutral-500"><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-rose-300" />Booked</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-amber-300" />Maintenance</span><span><i className="mr-1 inline-block h-2 w-2 rounded-sm bg-emerald-300" />Available</span></div>
+                </section>
 
                 <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-200">
                   <label className="block text-[10px] font-bold text-neutral-400 uppercase mb-1">

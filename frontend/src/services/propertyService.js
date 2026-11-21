@@ -42,4 +42,11 @@ export const propertyService = {
     });
     return res.data;
   },
+
+  async getAvailabilityCalendar(id, startDate, endDate) {
+    const res = await api.get(`/bookings/property/${id}/availability`, {
+      params: { startDate, endDate },
+    });
+    return res.data;
+  },
 };

@@ -56,7 +56,7 @@ export default function ProfileMenu({ user, onEditProfile, onLogout }) {
       </div>
       <div className="profile-menu-contact"><FaUser aria-hidden="true" /><span>{user?.email || 'Email not set'}</span></div>
       {user?.phone && <div className="profile-menu-contact"><span className="profile-menu-phone">TEL</span><span>{user.phone}</span></div>}
-      <button type="button" role="menuitem" onClick={() => { setOpen(false); onEditProfile() }}>Edit profile</button>
+      <button type="button" role="menuitem" onClick={() => { setOpen(false); onEditProfile() }}>Profile &amp; password</button>
       <button type="button" role="menuitem" className="profile-menu-signout" onClick={onLogout}><FaSignOutAlt /> Sign out</button>
     </div>}
   </div>

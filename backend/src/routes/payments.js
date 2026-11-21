@@ -3,8 +3,15 @@ import PaymentService from '../services/PaymentService.js'
 import MpesaService from '../services/MpesaService.js'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { asyncHandler, ValidationError } from '../utils/errors.js'
+import { query } from '../database/db.js'
 
 const router = express.Router()
+
+async function ensureBookingScope(req, bookingId) {
+  if (!req.user.ownerScopedStaff) return
+  const [booking] = await query('SELECT property_id FROM bookings WHERE id = ?', [bookingId])
+  if (!booking || !req.user.propertyIds.includes(booking.property_id)) throw new ValidationError('Booking is outside your assigned properties')
+}
 
 /**
  * POST /api/payments/mpesa/stk-push
@@ -18,6 +25,7 @@ router.post(
     if (!bookingId || !amount || !phone) {
       throw new ValidationError('bookingId, amount, and phone are required')
     }
+    await ensureBookingScope(req, bookingId)
 
     const result = await MpesaService.createStkPayment({
       bookingId,
@@ -60,6 +68,7 @@ router.post(
     if (!bookingId || !amount || !method) {
       throw new ValidationError('bookingId, amount, and method are required')
     }
+    await ensureBookingScope(req, bookingId)
 
     const result = await PaymentService.createPayment(
       bookingId,
@@ -84,7 +93,7 @@ router.post(
 router.get(
   '/',
   authenticate,
-  requireRole('admin', 'cashier'),
+  requireRole('admin', 'cashier', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { page = 1, limit = 20, status, method, startDate, endDate } = req.query
 
@@ -93,6 +102,7 @@ router.get(
       method: method || null,
       startDate: startDate || null,
       endDate: endDate || null,
+      propertyIds: req.user.ownerScopedStaff ? req.user.propertyIds : null,
     }
 
     const result = await PaymentService.getAllPayments(
@@ -118,6 +128,10 @@ router.get(
   '/:id',
   authenticate,
   asyncHandler(async (req, res) => {
+    if (req.user.ownerScopedStaff) {
+      const [payment] = await query('SELECT b.property_id FROM payments p JOIN bookings b ON b.id = p.booking_id WHERE p.id = ?', [req.params.id])
+      if (!payment || !req.user.propertyIds.includes(payment.property_id)) throw new ValidationError('Payment is outside your assigned properties')
+    }
     const result = await PaymentService.getPaymentById(
       req.params.id,
       req.user.role === 'cashier' ? req.user.id : null
@@ -139,6 +153,7 @@ router.get(
   '/booking/:bookingId',
   authenticate,
   asyncHandler(async (req, res) => {
+    await ensureBookingScope(req, req.params.bookingId)
     const result = await PaymentService.getBookingPayments(
       req.params.bookingId,
       req.user.role === 'cashier' ? req.user.id : null
@@ -159,7 +174,7 @@ router.get(
 router.put(
   '/:id',
   authenticate,
-  requireRole('admin', 'cashier'),
+  requireRole('admin', 'cashier', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { status } = req.body
 
@@ -188,7 +203,7 @@ router.put(
 router.post(
   '/:id/refund',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { reason } = req.body
 
@@ -209,7 +224,7 @@ router.post(
 router.get(
   '/reports/revenue',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { date } = req.query
 
@@ -234,7 +249,7 @@ router.get(
 router.get(
   '/reports/by-method',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { startDate, endDate } = req.query
 
@@ -255,7 +270,7 @@ router.get(
 router.get(
   '/reports/outstanding',
   authenticate,
-  requireRole('admin'),
+  requireRole('admin', 'property_owner'),
   asyncHandler(async (req, res) => {
     const { page = 1, limit = 20 } = req.query
 

@@ -67,6 +67,48 @@ CREATE TABLE IF NOT EXISTS properties (
   KEY idx_properties_sync_updated (updated_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Owner-managed staff access is scoped to the owner's properties. These tables
+-- do not alter the platform administrator's global role or permissions.
+CREATE TABLE IF NOT EXISTS owner_staff_assignments (
+  owner_id VARCHAR(36) NOT NULL,
+  staff_id VARCHAR(36) NOT NULL,
+  status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (owner_id, staff_id),
+  UNIQUE KEY uq_owner_staff_account (staff_id),
+  KEY idx_owner_staff_owner_status (owner_id, status),
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (staff_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS owner_staff_properties (
+  owner_id VARCHAR(36) NOT NULL,
+  staff_id VARCHAR(36) NOT NULL,
+  property_id VARCHAR(36) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (owner_id, staff_id, property_id),
+  KEY idx_owner_staff_property (property_id, staff_id),
+  FOREIGN KEY (owner_id, staff_id) REFERENCES owner_staff_assignments(owner_id, staff_id) ON DELETE CASCADE,
+  FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS owner_activity_events (
+  id VARCHAR(36) PRIMARY KEY,
+  owner_id VARCHAR(36) NOT NULL,
+  actor_id VARCHAR(36),
+  property_id VARCHAR(36),
+  action VARCHAR(255) NOT NULL,
+  entity_type VARCHAR(100),
+  entity_id VARCHAR(36),
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_owner_activity_time (owner_id, created_at),
+  KEY idx_owner_activity_actor (actor_id, created_at),
+  FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Property Images table
 CREATE TABLE IF NOT EXISTS property_images (
   id VARCHAR(36) PRIMARY KEY,

@@ -61,6 +61,7 @@ export default function Dashboard({ onNavigate, user, userRole }) {
   const [categoryBreakdown, setCategoryBreakdown] = useState([]);
   const [loading, setLoading] = useState(true);
   const resolvedUserRole = userRole || user?.role || 'admin';
+  const isOwner = resolvedUserRole === 'property_owner';
 
   useEffect(() => {
     if (resolvedUserRole === 'cashier') return;
@@ -139,12 +140,12 @@ export default function Dashboard({ onNavigate, user, userRole }) {
         </div>
 
         <div className="dashboard-header-actions">
-          <button
+          {!isOwner && <button
             onClick={() => onNavigate?.('cashier_terminal')}
             className="btn-amber"
           >
             <FaPlus /> New Walk-In Check-In
-          </button>
+          </button>}
           <button onClick={() => onNavigate?.('reports')} className="btn-secondary">
             <FaChartLine /> Detailed Reports
           </button>
@@ -270,11 +271,11 @@ export default function Dashboard({ onNavigate, user, userRole }) {
           </div>
 
           <nav className="shortcut-list" aria-label="Front desk actions">
-            <button onClick={() => onNavigate?.('cashier_terminal')} className="dashboard-shortcut primary">
+            {!isOwner && <button onClick={() => onNavigate?.('cashier_terminal')} className="dashboard-shortcut primary">
               <span className="shortcut-icon"><FaSignInAlt aria-hidden="true" /></span>
               <span className="shortcut-copy"><strong>Walk-in check-in</strong><small>Start a cashier booking</small></span>
               <FaArrowRight className="shortcut-arrow" aria-hidden="true" />
-            </button>
+            </button>}
             <button onClick={() => onNavigate?.('maintenance')} className="dashboard-shortcut">
               <span className="shortcut-icon"><FaBroom aria-hidden="true" /></span>
               <span className="shortcut-copy"><strong>Room readiness</strong><small>Review housekeeping status</small></span>

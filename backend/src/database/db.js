@@ -30,6 +30,53 @@ export async function initializeDatabase() {
     await pool.query("ALTER TABLE users MODIFY COLUMN role ENUM('customer', 'admin', 'cashier', 'property_owner', 'housekeeping', 'catering') NOT NULL DEFAULT 'customer'")
   }
 
+  // Tenant-scoped staff access for property owners. Global admin accounts and
+  // their existing permissions remain independent of these owner assignments.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS owner_staff_assignments (
+      owner_id VARCHAR(36) NOT NULL,
+      staff_id VARCHAR(36) NOT NULL,
+      status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (owner_id, staff_id),
+      UNIQUE KEY uq_owner_staff_account (staff_id),
+      KEY idx_owner_staff_owner_status (owner_id, status),
+      CONSTRAINT fk_owner_staff_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_owner_staff_user FOREIGN KEY (staff_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS owner_staff_properties (
+      owner_id VARCHAR(36) NOT NULL,
+      staff_id VARCHAR(36) NOT NULL,
+      property_id VARCHAR(36) NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (owner_id, staff_id, property_id),
+      KEY idx_owner_staff_property (property_id, staff_id),
+      CONSTRAINT fk_owner_staff_property_assignment FOREIGN KEY (owner_id, staff_id)
+        REFERENCES owner_staff_assignments(owner_id, staff_id) ON DELETE CASCADE,
+      CONSTRAINT fk_owner_staff_property_property FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS owner_activity_events (
+      id VARCHAR(36) PRIMARY KEY,
+      owner_id VARCHAR(36) NOT NULL,
+      actor_id VARCHAR(36),
+      property_id VARCHAR(36),
+      action VARCHAR(255) NOT NULL,
+      entity_type VARCHAR(100),
+      entity_id VARCHAR(36),
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_owner_activity_time (owner_id, created_at),
+      KEY idx_owner_activity_actor (actor_id, created_at),
+      CONSTRAINT fk_owner_activity_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE,
+      CONSTRAINT fk_owner_activity_actor FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
+      CONSTRAINT fk_owner_activity_property FOREIGN KEY (property_id) REFERENCES properties(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   const [propertyTypeColumn] = await pool.query(
     `SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'properties' AND COLUMN_NAME = 'type'`

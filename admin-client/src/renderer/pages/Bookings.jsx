@@ -13,7 +13,7 @@ function authConfig() {
  * Bookings Management Page
  * View, create, and manage bookings
  */
-export default function Bookings({ onNewBooking }) {
+export default function Bookings({ onNewBooking, showNewBooking = true }) {
   const [bookings, setBookings] = useState([])
   const [filteredBookings, setFilteredBookings] = useState([])
   const [loading, setLoading] = useState(true)
@@ -163,10 +163,10 @@ export default function Bookings({ onNewBooking }) {
           </select>
         </div>
 
-        <button type="button" className="btn-primary" onClick={onNewBooking}>
+        {showNewBooking && <button type="button" className="btn-primary" onClick={onNewBooking}>
           <FiPlus size={20} />
           New Booking
-        </button>
+        </button>}
       </div>
 
       {/* Bookings List */}

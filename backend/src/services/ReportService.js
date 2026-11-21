@@ -3,7 +3,7 @@ import { ValidationError, NotFoundError } from '../utils/errors.js'
 
 class ReportService {
   async getOperationsSnapshot(user) {
-    const ownerScoped = user.role === 'property_owner'
+    const ownerScoped = false
     const propertyFilter = ownerScoped ? ' AND p.owner_id = ?' : ''
     const propertyParams = ownerScoped ? [user.id] : []
 

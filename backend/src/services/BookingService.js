@@ -191,10 +191,15 @@ class BookingService {
     )
   }
 
-  async getServiceRequests(status = null) {
+  async getServiceRequests(status = null, propertyIds = null) {
+    const clauses = []
     const params = []
-    const where = status ? 'WHERE ba.status = ?' : ''
-    if (status) params.push(status)
+    if (status) { clauses.push('ba.status = ?'); params.push(status) }
+    if (Array.isArray(propertyIds)) {
+      if (!propertyIds.length) clauses.push('1 = 0')
+      else { clauses.push(`b.property_id IN (${propertyIds.map(() => '?').join(',')})`); params.push(...propertyIds) }
+    }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
     return query(
             `SELECT ba.id, ba.booking_id, ba.addon_id, ba.quantity, ba.unit_price, ba.status,
               ba.assigned_to, ba.fulfillment_status,
@@ -293,10 +298,18 @@ class BookingService {
    * Get all bookings (admin)
    */
   async getAllBookings(filters = {}, page = 1, limit = 20) {
-    const { status, propertyId, customerId, source } = filters
+    const { status, propertyId, customerId, source, propertyIds = null } = filters
 
     let whereClause = 'WHERE 1=1'
     const params = []
+
+    if (Array.isArray(propertyIds)) {
+      if (!propertyIds.length) whereClause += ' AND 1 = 0'
+      else {
+        whereClause += ` AND b.property_id IN (${propertyIds.map(() => '?').join(',')})`
+        params.push(...propertyIds)
+      }
+    }
 
     if (status) {
       whereClause += ' AND b.status = ?'

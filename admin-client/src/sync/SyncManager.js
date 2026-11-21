@@ -62,11 +62,24 @@ class SyncManager {
           }
         }
       };
-      const applyPage = db.batch((delta) => {
-        applyRecords('property', delta.properties, this.upsertProperty);
-        applyRecords('booking', delta.bookings, this.upsertBooking);
-        applyRecords('payment', delta.payments, this.upsertPayment);
-      });
+      const applyPage = async (delta) => {
+        const chunkSize = 50;
+        const entities = [
+          ['property', delta.properties, this.upsertProperty],
+          ['booking', delta.bookings, this.upsertBooking],
+          ['payment', delta.payments, this.upsertPayment],
+        ];
+
+        for (const [entity, records, upsert] of entities) {
+          for (let offset = 0; offset < (records || []).length; offset += chunkSize) {
+            const chunk = records.slice(offset, offset + chunkSize);
+            db.batch(() => applyRecords(entity, chunk, upsert))();
+            // SQLite is synchronous; yield between small transactions so the Electron
+            // main process can continue handling window and IPC events during initial sync.
+            await yieldToMainLoop();
+          }
+        }
+      };
       do {
         const res = await this.apiClient.post('/sync/pull', { sinceTimestamp: this.lastSyncTime, cursors });
         const data = res.data?.data;
@@ -74,7 +87,7 @@ class SyncManager {
         if (!serverTime) serverTime = data?.serverTime || null;
         if (!delta) break;
 
-        applyPage(delta);
+        await applyPage(delta);
         cursors = data?.nextCursors || null;
         const hasMore = cursors && Object.values(cursors).some((cursor) => cursor && !cursor.done);
         pages += 1;

@@ -11,16 +11,16 @@
     "build": "vite build && node scripts/copy-electron.mjs",
     "build:electron": "npm run build",
     "preview": "vite preview",
-    "electron": "npm run build && electron .",
-    "electron-dev": "npm run build && electron .",
-    "package": "npm run build && electron-builder",
+    "electron": "node ../node_modules/electron/cli.js .",
+    "electron-dev": "npm run build && node ../node_modules/electron/cli.js .",
+    "package": "npm run build && node ../node_modules/electron-builder/cli.js",
     "lint": "eslint src --ext js,jsx"
   },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0",
-    "better-sqlite3": "^9.4.0",
+    "better-sqlite3": "^13.0.3",
     "axios": "^1.6.2",
     "zustand": "^4.4.1",
     "tailwindcss": "^3.3.5",
@@ -29,8 +29,8 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "electron": "^28.2.0",
-    "electron-builder": "^24.6.4",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.1",
     "@vitejs/plugin-react": "^4.1.0",
     "vite": "^5.0.2",
     "eslint": "^8.50.0"

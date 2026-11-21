@@ -35,10 +35,19 @@ class PropertyService {
       rating,
       search,
       includeInactive = false,
+      propertyIds = null,
     } = filters
 
     let whereClause = includeInactive ? 'WHERE 1=1' : 'WHERE p.status = "available" AND COALESCE(p.housekeeping_status, \'clean\') <> "maintenance"'
     const params = []
+
+    if (Array.isArray(propertyIds)) {
+      if (!propertyIds.length) whereClause += ' AND 1 = 0'
+      else {
+        whereClause += ` AND p.id IN (${propertyIds.map(() => '?').join(',')})`
+        params.push(...propertyIds)
+      }
+    }
 
     if (type) {
       whereClause += ' AND p.type = ?'
@@ -95,14 +104,14 @@ class PropertyService {
       filtered = properties.filter(p => (p.avg_rating || 0) >= rating)
     }
 
-    const propertyIds = filtered.map((property) => property.id)
-    const imageRows = propertyIds.length
+    const filteredPropertyIds = filtered.map((property) => property.id)
+    const imageRows = filteredPropertyIds.length
       ? await query(
         `SELECT property_id, image_url
          FROM property_images
-         WHERE property_id IN (${propertyIds.map(() => '?').join(',')})
+         WHERE property_id IN (${filteredPropertyIds.map(() => '?').join(',')})
          ORDER BY display_order`,
-        propertyIds
+        filteredPropertyIds
       )
       : []
     const imagesByProperty = new Map()

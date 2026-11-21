@@ -18,7 +18,7 @@ class ReceiptService {
       throw new NotFoundError('Payment');
     }
 
-    const canAccessAsAdmin = user?.role === 'admin';
+    const canAccessAsAdmin = ['admin', 'property_owner'].includes(user?.role);
     const canAccessAsCashier = user?.role === 'cashier' && payments[0].issued_by === user?.id;
     const canAccessAsCustomer = payments[0].customer_id === user?.id;
     if (!canAccessAsAdmin && !canAccessAsCashier && !canAccessAsCustomer) {

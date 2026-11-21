@@ -102,9 +102,9 @@ class GuestServiceService {
     const staff = await query(`SELECT id FROM users WHERE status = 'active' AND (
       role IN ('admin', 'cashier')
       OR (role = 'catering' AND ? IN ('food', 'refreshments'))
-      OR (role = 'property_owner' AND id = (SELECT owner_id FROM properties WHERE id = ?))
+      OR role = 'property_owner'
       OR (role = 'housekeeping' AND ? IN ('cleaning', 'laundry'))
-    )`, [serviceType, booking.property_id, serviceType])
+    )`, [serviceType, serviceType])
     const teamBoard = CATERING_TYPES.includes(serviceType)
       ? 'Catering Orders'
       : ['laundry', 'cleaning'].includes(serviceType)
@@ -157,9 +157,15 @@ class GuestServiceService {
   async getForStaff(user) {
     const clauses = []
     const params = []
-    if (user.role === 'property_owner') { clauses.push('p.owner_id = ?'); params.push(user.id) }
     if (user.role === 'housekeeping') { clauses.push("r.service_type IN ('cleaning', 'laundry')") }
     if (user.role === 'catering') { clauses.push("r.service_type IN ('food', 'refreshments')") }
+    if (user.ownerScopedStaff) {
+      if (!user.propertyIds?.length) clauses.push('1 = 0')
+      else {
+        clauses.push(`r.property_id IN (${user.propertyIds.map(() => '?').join(',')})`)
+        params.push(...user.propertyIds)
+      }
+    }
     const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
     const rows = await query(`SELECT r.*, p.name AS property_name, b.check_in_date, b.check_out_date,
       (SELECT payment.receipt_number FROM guest_service_payments payment
@@ -179,9 +185,8 @@ class GuestServiceService {
 
   async update(id, input, user) {
     const request = await this.getById(id)
-    if (user.role === 'property_owner') {
-      const [ownership] = await query('SELECT id FROM properties WHERE id = ? AND owner_id = ?', [request.property_id, user.id])
-      if (!ownership) throw new ValidationError('This service request is not for your property')
+    if (user.ownerScopedStaff && !user.propertyIds?.includes(request.property_id)) {
+      throw new ValidationError('This service request is outside your assigned properties')
     }
     if (user.role === 'housekeeping' && !['cleaning', 'laundry'].includes(request.service_type)) {
       throw new ValidationError('Housekeeping staff can only handle cleaning and laundry requests')
@@ -191,7 +196,7 @@ class GuestServiceService {
     }
     let selectedMenuItems = null
     if (input.menuItemIds !== undefined) {
-      if (!['admin', 'catering'].includes(user.role) || !CATERING_TYPES.includes(request.service_type)) {
+      if (!['admin', 'property_owner', 'catering'].includes(user.role) || !CATERING_TYPES.includes(request.service_type)) {
         throw new ValidationError('Only catering staff can attach food images to food and refreshments requests')
       }
       const ids = [...new Set(Array.isArray(input.menuItemIds) ? input.menuItemIds.map(String) : [])]
@@ -252,7 +257,7 @@ class GuestServiceService {
 
   async shareMenuItems(id, menuItemIds, user) {
     const request = await this.getById(id)
-    if (!['admin', 'catering'].includes(user.role) || !CATERING_TYPES.includes(request.service_type)) {
+    if (!['admin', 'property_owner', 'catering'].includes(user.role) || !CATERING_TYPES.includes(request.service_type)) {
       throw new ValidationError('Only catering staff can send food photos for food and refreshments requests')
     }
     const ids = [...new Set(Array.isArray(menuItemIds) ? menuItemIds.map(String) : [])]
@@ -301,7 +306,7 @@ class GuestServiceService {
   }
 
   async verifyGuestServicePayment(id, receiptNumber, user) {
-    if (!['admin', 'cashier', 'catering'].includes(user.role)) {
+    if (!['admin', 'property_owner', 'cashier', 'catering'].includes(user.role)) {
       throw new ValidationError('Only catering or payment staff can verify a service payment')
     }
     const receipt = String(receiptNumber || '').trim().toUpperCase()

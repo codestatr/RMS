@@ -2,6 +2,7 @@ import express from 'express'
 import { authenticate, requireRole } from '../middleware/auth.js'
 import { asyncHandler } from '../utils/errors.js'
 import HousekeepingService from '../services/HousekeepingService.js'
+import { ValidationError } from '../utils/errors.js'
 
 const router = express.Router()
 router.use(authenticate, requireRole('admin', 'cashier', 'housekeeping'))
@@ -12,6 +13,7 @@ router.get('/workboard', asyncHandler(async (req, res) => {
 }))
 
 router.post('/tasks', asyncHandler(async (req, res) => {
+  if (req.user.ownerScopedStaff && !req.user.propertyIds.includes(String(req.body?.propertyId || ''))) throw new ValidationError('Property is outside your assigned access')
   const data = await HousekeepingService.createTask(req.body || {}, req.user.id)
   res.status(201).json({ success: true, message: 'Housekeeping task created', data })
 }))

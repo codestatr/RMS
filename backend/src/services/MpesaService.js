@@ -324,26 +324,27 @@ class MpesaService {
 
   async getPaymentStatus(checkoutRequestId, user = null) {
     let payments = await query(
-      `SELECT id, booking_id, amount, method, status, transaction_ref, updated_at
-       FROM payments WHERE transaction_ref = ?`,
+      `SELECT p.id, p.booking_id, p.amount, p.method, p.status, p.transaction_ref, p.updated_at, b.property_id
+       FROM payments p JOIN bookings b ON b.id = p.booking_id WHERE p.transaction_ref = ?`,
       [checkoutRequestId]
     )
+    if (payments.length && user?.ownerScopedStaff && !user.propertyIds.includes(payments[0].property_id)) throw new NotFoundError('M-Pesa payment')
     if (payments.length && payments[0].status === 'pending') {
       await this.reconcilePendingPayment(checkoutRequestId)
-      payments = await query(`SELECT id, booking_id, amount, method, status, transaction_ref, updated_at
-        FROM payments WHERE transaction_ref = ?`, [checkoutRequestId])
+      payments = await query(`SELECT p.id, p.booking_id, p.amount, p.method, p.status, p.transaction_ref, p.updated_at, b.property_id
+        FROM payments p JOIN bookings b ON b.id = p.booking_id WHERE p.transaction_ref = ?`, [checkoutRequestId])
     }
     if (payments.length) return payments[0]
     let servicePayments = await query(
-      `SELECT id, request_id AS guest_service_request_id, amount, method, status, transaction_ref, receipt_number, updated_at
-       FROM guest_service_payments WHERE transaction_ref = ?`,
+      `SELECT pay.id, pay.request_id AS guest_service_request_id, pay.amount, pay.method, pay.status, pay.transaction_ref, pay.receipt_number, pay.updated_at, request.property_id
+       FROM guest_service_payments pay JOIN guest_service_requests request ON request.id = pay.request_id WHERE pay.transaction_ref = ?`,
       [checkoutRequestId]
     )
     if (!servicePayments.length) {
       let walkinOrders = await query(`SELECT id AS walkin_order_id, quoted_amount AS amount, payment_method AS method,
           payment_status AS status, transaction_ref, receipt_number, updated_at
         FROM catering_walkin_orders WHERE transaction_ref = ?`, [checkoutRequestId])
-      if (!walkinOrders.length || !['admin', 'catering', 'cashier'].includes(user?.role)) throw new NotFoundError('M-Pesa payment')
+      if (!walkinOrders.length || !['admin', 'catering', 'cashier'].includes(user?.role) || user?.ownerScopedStaff) throw new NotFoundError('M-Pesa payment')
       if (walkinOrders[0].status === 'pending') {
         await this.reconcilePendingPayment(checkoutRequestId)
         walkinOrders = await query(`SELECT id AS walkin_order_id, quoted_amount AS amount, payment_method AS method,
@@ -352,10 +353,11 @@ class MpesaService {
       }
       return walkinOrders[0]
     }
+    if (user?.ownerScopedStaff && !user.propertyIds.includes(servicePayments[0].property_id)) throw new NotFoundError('M-Pesa payment')
     if (servicePayments[0].status === 'pending') {
       await this.reconcilePendingPayment(checkoutRequestId)
-      servicePayments = await query(`SELECT id, request_id AS guest_service_request_id, amount, method, status, transaction_ref, receipt_number, updated_at
-        FROM guest_service_payments WHERE transaction_ref = ?`, [checkoutRequestId])
+      servicePayments = await query(`SELECT pay.id, pay.request_id AS guest_service_request_id, pay.amount, pay.method, pay.status, pay.transaction_ref, pay.receipt_number, pay.updated_at, request.property_id
+        FROM guest_service_payments pay JOIN guest_service_requests request ON request.id = pay.request_id WHERE pay.transaction_ref = ?`, [checkoutRequestId])
     }
     if (user?.role === 'customer') {
       const [ownership] = await query(`SELECT id FROM guest_service_requests

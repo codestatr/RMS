@@ -14,7 +14,7 @@ router.post(
   authenticate,
   asyncHandler(async (req, res) => {
     const { sinceTimestamp, cursors } = req.body;
-    const result = await SyncService.pullUpdates(sinceTimestamp, cursors);
+    const result = await SyncService.pullUpdates(sinceTimestamp, cursors, req.user.ownerScopedStaff ? req.user.propertyIds : null);
 
     res.json({
       success: true,
@@ -38,7 +38,7 @@ router.post(
       throw new ValidationError('Payload is required for sync push');
     }
 
-    const result = await SyncService.pushUpdates(deviceId || req.user.id, { ...payload, userId: req.user.id });
+    const result = await SyncService.pushUpdates(deviceId || req.user.id, { ...payload, userId: req.user.id }, req.user);
 
     res.json({
       success: true,

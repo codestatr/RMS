@@ -34,12 +34,14 @@ export default function Sidebar({
   collapsed,
   onToggleCollapse,
   syncStatus,
+  user,
   userRole = 'admin',
 }) {
-  const isCashier = userRole === 'cashier';
-  const isOwner = userRole === 'property_owner';
-  const isHousekeeping = userRole === 'housekeeping';
-  const isCatering = userRole === 'catering';
+  const normalizedRole = String(user?.role || userRole || 'admin').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const isCashier = normalizedRole === 'cashier';
+  const isOwner = normalizedRole === 'property_owner' || normalizedRole === 'owner';
+  const isHousekeeping = normalizedRole === 'housekeeping';
+  const isCatering = normalizedRole === 'catering';
   const [branding, setBranding] = useState(getBranding);
   useEffect(() => {
     const refreshBranding = (event) => setBranding(event.detail || getBranding());
@@ -111,12 +113,16 @@ export default function Sidebar({
   ];
 
   const ownerSections = [
-    { title: 'OWNER WORKSPACE', items: [{ id: 'owner_portal', label: 'Owner Portal', icon: FaBuilding }] },
+    { title: 'PROPERTY OWNER', items: [{ id: 'owner_portal', label: 'Property Owner Control', icon: FaBuilding }] },
+    ...adminSections
+      .map((section) => ({ ...section, items: section.items.filter((item) => item.id !== 'cashier_terminal') }))
+      .filter((section) => section.items.length > 0),
   ];
 
   const housekeepingSections = [
     { title: 'PROPERTY CARE', items: [
       { id: 'housekeeping_portal', label: 'Overview', icon: FaChartPie },
+      { id: 'calendar', label: 'Availability Calendar', icon: FaCalendarCheck },
       { id: 'housekeeping_tasks', label: 'Task Queue', icon: FaTasks },
       { id: 'housekeeping_rooms', label: 'Room Readiness', icon: FaBroom },
       { id: 'housekeeping_guest_requests', label: 'Guest Laundry & Cleaning', icon: FaPlane },
@@ -127,6 +133,7 @@ export default function Sidebar({
   const cateringSections = [
     { title: 'FOOD & REFRESHMENTS', items: [
       { id: 'catering_portal', label: 'Overview', icon: FaChartPie },
+      { id: 'calendar', label: 'Guest Stay Calendar', icon: FaCalendarCheck },
       { id: 'catering_orders', label: 'Order Requests', icon: FaClipboardList },
       { id: 'catering_walkins', label: 'Walk-In Orders', icon: FaCashRegister },
       { id: 'catering_kitchen', label: 'Kitchen Queue', icon: FaTasks },

@@ -2,6 +2,7 @@ import express from 'express'
 import BookingService from '../services/BookingService.js'
 import { authenticate, requireRole, optionalAuthenticate } from '../middleware/auth.js'
 import { asyncHandler, ValidationError } from '../utils/errors.js'
+import { query } from '../database/db.js'
 
 const router = express.Router()
 
@@ -17,9 +18,9 @@ router.get(
 
     let result
 
-    if (req.user.role === 'admin' || req.user.role === 'cashier') {
+    if (['admin', 'cashier', 'property_owner', 'housekeeping', 'catering'].includes(req.user.role)) {
       // Staff need the shared booking board for front-desk operations.
-      result = await BookingService.getAllBookings({ status }, page, limit)
+      result = await BookingService.getAllBookings({ status, propertyIds: req.user.ownerScopedStaff ? req.user.propertyIds : null }, page, limit)
     } else {
       // Customers see only their bookings
       result = await BookingService.getCustomerBookings(req.user.id, status, page, limit)
@@ -41,7 +42,8 @@ router.post(
   '/',
   authenticate,
   asyncHandler(async (req, res) => {
-    const isWalkIn = ['admin', 'cashier'].includes(req.user.role) && req.body?.source === 'pos'
+    const isWalkIn = ['admin', 'cashier', 'property_owner'].includes(req.user.role) && req.body?.source === 'pos'
+    if (req.user.ownerScopedStaff && !req.user.propertyIds.includes(req.body?.propertyId)) throw new ValidationError('Property is outside your assigned access')
     const customerId = isWalkIn
       ? await BookingService.resolveWalkInCustomer({ name: req.body.guestName, phone: req.body.guestPhone })
       : req.user.id
@@ -69,7 +71,7 @@ router.get(
   authenticate,
   requireRole('admin', 'cashier'),
   asyncHandler(async (req, res) => {
-    const result = await BookingService.getServiceRequests(req.query.status || null)
+    const result = await BookingService.getServiceRequests(req.query.status || null, req.user.ownerScopedStaff ? req.user.propertyIds : null)
     res.json({ success: true, data: result })
   })
 )
@@ -79,6 +81,10 @@ router.patch(
   authenticate,
   requireRole('admin', 'cashier'),
   asyncHandler(async (req, res) => {
+    if (req.user.ownerScopedStaff) {
+      const [service] = await query(`SELECT b.property_id FROM booking_addons ba JOIN bookings b ON b.id = ba.booking_id WHERE ba.id = ?`, [req.params.id])
+      if (!service || !req.user.propertyIds.includes(service.property_id)) throw new ValidationError('Service request is outside your assigned properties')
+    }
     const result = await BookingService.updateServiceRequest(
       req.params.id,
       req.body?.status,
@@ -98,6 +104,10 @@ router.get(
   '/:id',
   authenticate,
   asyncHandler(async (req, res) => {
+    if (req.user.ownerScopedStaff) {
+      const [booking] = await query('SELECT property_id FROM bookings WHERE id = ?', [req.params.id])
+      if (!booking || !req.user.propertyIds.includes(booking.property_id)) throw new ValidationError('Booking is outside your assigned properties')
+    }
     const result = await BookingService.getBookingById(req.params.id)
 
     res.json({
@@ -145,6 +155,10 @@ router.patch(
   asyncHandler(async (req, res) => {
     const { status } = req.body || {}
     if (!status) throw new ValidationError('status is required')
+    if (req.user.ownerScopedStaff) {
+      const [booking] = await query('SELECT property_id FROM bookings WHERE id = ?', [req.params.id])
+      if (!booking || !req.user.propertyIds.includes(booking.property_id)) throw new ValidationError('Booking is outside your assigned properties')
+    }
 
     const result = await BookingService.updateBookingStatus(
       req.params.id,

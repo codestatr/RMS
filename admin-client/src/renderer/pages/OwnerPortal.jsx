@@ -1,15 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import axios from 'axios'
 import '../../styles/owner-portal.css'
 import { OperationsOverview } from './Dashboard'
 import { optimizePropertyImage } from '../utils/propertyImages'
+import OwnerTeam from './owner/OwnerTeam'
 import {
   FaBed, FaBuilding, FaCalendarAlt, FaCalendarCheck, FaCheck, FaConciergeBell,
-  FaEdit, FaHome, FaMoneyBillWave, FaPlus, FaStar, FaUser,
+  FaEdit, FaHome, FaMoneyBillWave, FaPlus, FaStar, FaUser, FaChartLine,
 } from 'react-icons/fa'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-const authConfig = () => ({ headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` } })
+const authConfig = () => ({ headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || ''}` } })
 const money = (amount) => `KES ${Number(amount || 0).toLocaleString()}`
 const propertyImages = (property) => Array.isArray(property?.images)
   ? property.images.filter(Boolean)
@@ -23,32 +24,46 @@ const formatDate = (value) => value ? new Date(value).toLocaleDateString() : '�
 
 export default function OwnerPortal({ user, onUserUpdate }) {
   const [overview, setOverview] = useState({ properties: [], stats: {}, bookings: [], services: [], guestServiceRequests: [], payments: [], reviews: [], monthlyRevenue: [] })
+  const [analytics, setAnalytics] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [editingProperty, setEditingProperty] = useState(null)
   const [bookingStatusFilter, setBookingStatusFilter] = useState('all')
   const [propertyFilter, setPropertyFilter] = useState('all')
   const [profile, setProfile] = useState({ firstName: user?.firstName || '', lastName: user?.lastName || '', phone: user?.phone || '' })
+  const refreshInFlight = useRef(false)
 
   const loadOverview = useCallback(async () => {
+    if (refreshInFlight.current) return
+    refreshInFlight.current = true
     try {
-      const [response, guestServices] = await Promise.all([
+      const [response, guestServices, analyticsResponse] = await Promise.all([
         axios.get(`${API_URL}/owner-portal/overview`, authConfig()),
         axios.get(`${API_URL}/guest-services`, authConfig()),
+        axios.get(`${API_URL}/owner-portal/analytics`, authConfig()),
       ])
       setOverview((current) => ({ ...current, ...(response.data?.data || {}), guestServiceRequests: guestServices.data?.data || [] }))
+      setAnalytics(analyticsResponse.data?.data || null)
       setError('')
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'Unable to load your owner portal.')
     } finally {
       setLoading(false)
+      refreshInFlight.current = false
     }
   }, [])
 
-  useEffect(() => { loadOverview() }, [loadOverview])
+  useEffect(() => {
+    loadOverview()
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadOverview()
+    }, 15000)
+    return () => window.clearInterval(timer)
+  }, [loadOverview])
 
   async function saveProperty(event) {
     event.preventDefault()
@@ -124,11 +139,45 @@ export default function OwnerPortal({ user, onUserUpdate }) {
     }
   }
 
+  async function exportFinancialPdf() {
+    setExportingPdf(true)
+    setError('')
+    try {
+      const now = new Date()
+      const startDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+      const endDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()).padStart(2, '0')}`
+      const response = await axios.post(`${API_URL}/reports/export`, { reportType: 'financial', format: 'pdf', startDate, endDate }, { ...authConfig(), responseType: 'blob' })
+      if (!response.data || response.data.size === 0 || !String(response.headers?.['content-type'] || '').includes('application/pdf')) {
+        const responseText = response.data instanceof Blob ? await response.data.text() : ''
+        throw new Error(responseText || 'The server did not return a PDF document.')
+      }
+      const url = URL.createObjectURL(response.data)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `System-Financial-Report-${startDate}-to-${endDate}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (requestError) {
+      let message = requestError.response?.data?.error || requestError.response?.data?.message || requestError.message || 'Unable to export the financial report.'
+      if (requestError.response?.data instanceof Blob) {
+        try {
+          const body = JSON.parse(await requestError.response.data.text())
+          message = body.error || body.message || message
+        } catch { /* Keep the original export error. */ }
+      }
+      setError(`PDF export failed: ${message}`)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   const stats = overview.stats || {}
   const tabs = [
-    ['overview', 'Dashboard'], ['properties', 'Property listings'], ['bookings', 'Bookings'],
+    ['overview', 'Dashboard'], ['analytics', 'System analytics'], ['properties', 'Property listings'], ['bookings', 'Bookings'],
     ['availability', 'Availability'], ['services', 'Guest services'], ['finance', 'Financial reports'],
-    ['reviews', 'Guest reviews'], ['profile', 'Account'],
+    ['reviews', 'Guest reviews'], ['team', 'Team & activity'], ['profile', 'Account'],
   ]
   const visibleBookings = overview.bookings.filter((booking) =>
     (bookingStatusFilter === 'all' || booking.status === bookingStatusFilter)
@@ -140,9 +189,9 @@ export default function OwnerPortal({ user, onUserUpdate }) {
   return (
     <div className="owner-portal">
       <section className="admin-card owner-intro">
-        <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Owner workspace</p>
-        <h2 className="mt-2 text-2xl font-black text-neutral-900">Your properties, reservations, and guest services</h2>
-        <p className="mt-2 text-sm text-neutral-500">Manage your listings, follow each stay, and review payments and guest requests across your properties.</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-neutral-500">Property owner workspace</p>
+        <h2 className="mt-2 text-2xl font-black text-neutral-900">Global properties, operations, and system control</h2>
+        <p className="mt-2 text-sm text-neutral-500">View and manage every property, staff account, reservation, payment, and guest request in the system.</p>
       </section>
 
       {error && <div className="login-error" role="alert">{error}</div>}
@@ -150,7 +199,7 @@ export default function OwnerPortal({ user, onUserUpdate }) {
 
       <div className="owner-kpis">
         {[
-          [FaBuilding, 'Your properties', stats.property_count || 0],
+          [FaBuilding, 'System properties', stats.property_count || 0],
           [FaCalendarCheck, 'Active stays', stats.active_stays || 0],
           [FaBed, 'Pending reservations', stats.pending_bookings || 0],
           [FaMoneyBillWave, 'Paid this month', money(stats.monthly_revenue)],
@@ -164,7 +213,7 @@ export default function OwnerPortal({ user, onUserUpdate }) {
         {tabs.map(([id, label]) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`owner-tab ${activeTab === id ? 'is-active' : ''}`}>{label}</button>)}
       </nav>
 
-      {activeTab === 'overview' && <Overview properties={overview.properties} bookings={overview.bookings} onNavigate={(target) => setActiveTab(target === 'bookings' ? 'bookings' : target === 'hospitality' ? 'services' : target === 'maintenance' ? 'properties' : 'overview')} onEdit={(property) => setEditingProperty({ ...property, pricePerNight: property.price_per_night, pricePerWeek: property.price_per_week || '', pricePerMonth: property.price_per_month || '', images: propertyImages(property), imageUrl: property.image_url || propertyImages(property)[0] || '' })} onAdd={() => setEditingProperty({ ...emptyProperty })} onRoomReady={updateHousekeeping} />}
+      {activeTab === 'overview' && <Overview properties={overview.properties} bookings={overview.bookings} analytics={analytics} onNavigate={(target) => setActiveTab(target === 'bookings' ? 'bookings' : target === 'hospitality' ? 'services' : target === 'maintenance' ? 'properties' : 'overview')} onEdit={(property) => setEditingProperty({ ...property, pricePerNight: property.price_per_night, pricePerWeek: property.price_per_week || '', pricePerMonth: property.price_per_month || '', images: propertyImages(property), imageUrl: property.image_url || propertyImages(property)[0] || '' })} onAdd={() => setEditingProperty({ ...emptyProperty })} onRoomReady={updateHousekeeping} />}
 
       {activeTab === 'properties' && <Properties properties={overview.properties} onAdd={() => setEditingProperty({ ...emptyProperty })} onEdit={(property) => setEditingProperty({ ...property, pricePerNight: property.price_per_night, pricePerWeek: property.price_per_week || '', pricePerMonth: property.price_per_month || '', images: propertyImages(property), imageUrl: property.image_url || propertyImages(property)[0] || '' })} onRoomReady={updateHousekeeping} />}
 
@@ -174,9 +223,13 @@ export default function OwnerPortal({ user, onUserUpdate }) {
 
       {activeTab === 'services' && <RoomServices services={overview.services} guestRequests={overview.guestServiceRequests} onUpdate={updateService} onUpdateGuest={updateGuestService} />}
 
-      {activeTab === 'finance' && <Finances payments={overview.payments} monthlyRevenue={overview.monthlyRevenue} stats={stats} />}
+      {activeTab === 'finance' && <Finances payments={overview.payments} monthlyRevenue={overview.monthlyRevenue} stats={stats} onExportPdf={exportFinancialPdf} exportingPdf={exportingPdf} />}
 
       {activeTab === 'reviews' && <Reviews reviews={overview.reviews} />}
+
+      {activeTab === 'analytics' && <SystemAnalytics analytics={analytics} />}
+
+      {activeTab === 'team' && <OwnerTeam properties={overview.properties} />}
 
       {activeTab === 'profile' && <form className="admin-card max-w-3xl space-y-5" onSubmit={saveProfile}>
         <div className="flex items-center gap-3"><FaUser className="text-neutral-500" /><div><h3 className="font-extrabold">Owner contact details</h3><p className="text-sm text-neutral-500">These details help the operations team contact you about your listings.</p></div></div>
@@ -194,18 +247,51 @@ export default function OwnerPortal({ user, onUserUpdate }) {
   )
 }
 
-function Overview({ properties, bookings, onNavigate, onEdit, onAdd, onRoomReady }) {
+function Overview({ properties, bookings, analytics, onNavigate, onEdit, onAdd, onRoomReady }) {
   const upcoming = bookings.filter((booking) => ['pending', 'confirmed', 'checked_in'].includes(booking.status)).slice(0, 5)
   return <div className="space-y-7">
+    <SystemAnalytics analytics={analytics} compact />
     <OperationsOverview userRole="property_owner" onNavigate={onNavigate} />
     <section className="space-y-3">
-      <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-extrabold">Your properties</h3><button onClick={onAdd} className="btn-primary flex items-center gap-2"><FaPlus /> Add listing</button></div>
+      <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-extrabold">All system properties</h3><button onClick={onAdd} className="btn-primary flex items-center gap-2"><FaPlus /> Add listing</button></div>
       {properties.length ? <PropertyCards properties={properties.slice(0, 3)} onEdit={onEdit} onRoomReady={onRoomReady} /> : <div className="admin-card p-8 text-sm text-neutral-500">No listings yet. Add a property to start managing availability, stays, and guest services.</div>}
     </section>
     <section className="admin-card overflow-x-auto"><div className="flex items-center gap-2 p-5"><FaCalendarAlt className="text-neutral-500" /><h3 className="font-extrabold">Upcoming activity</h3></div>
       {upcoming.length ? <BookingTable bookings={upcoming} onUpdate={() => {}} compact /> : <p className="px-5 pb-5 text-sm text-neutral-500">No upcoming reservations.</p>}
     </section>
   </div>
+}
+
+function SystemAnalytics({ analytics, compact = false }) {
+  const accounts = analytics?.accounts || {}
+  const roleDetails = [
+    ['Administrator accounts', accounts.admin], ['Cashier accounts', accounts.cashier],
+    ['Housekeeping accounts', accounts.housekeeping], ['Catering accounts', accounts.catering],
+    ['Owner accounts', accounts.property_owner],
+  ]
+  const openCatering = Number(analytics?.catering?.requested || 0) + Number(analytics?.catering?.accepted || 0) + Number(analytics?.catering?.in_progress || 0)
+  const openHousekeeping = Number(analytics?.housekeeping?.open || 0) + Number(analytics?.housekeeping?.in_progress || 0)
+  const bookingTotal = Object.values(analytics?.bookings || {}).reduce((sum, count) => sum + Number(count || 0), 0)
+  return <section className="space-y-4" aria-live="polite">
+    <div className="flex flex-wrap items-end justify-between gap-2"><div><h3 className="flex items-center gap-2 text-lg font-extrabold"><FaChartLine /> System-wide portal analytics</h3><p className="text-sm text-neutral-500">Staff portal activity and operations refresh every 15 seconds.</p></div><span className="text-xs text-neutral-500">{analytics?.updatedAt ? `Updated ${new Date(analytics.updatedAt).toLocaleTimeString()}` : 'Loading live analytics…'}</span></div>
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="admin-card"><Value label="Cash collected today" value={money(analytics?.cashier?.paidToday)} /></div>
+      <div className="admin-card"><Value label="Payment transactions today" value={analytics?.cashier?.transactionsToday ?? '—'} /></div>
+      <div className="admin-card"><Value label="Open cashier shifts" value={analytics?.cashier?.openShifts ?? '—'} /></div>
+      <div className="admin-card"><Value label="Bookings across all portals" value={bookingTotal} /></div>
+      <div className="admin-card"><Value label="Open housekeeping tasks" value={openHousekeeping} /></div>
+      <div className="admin-card"><Value label="Open catering orders" value={openCatering} /></div>
+    </div>
+    {!compact && <>
+      <div className="admin-card overflow-x-auto"><h4 className="mb-3 font-extrabold">Account activity by portal</h4><table className="admin-table"><thead><tr><th>Portal</th><th>Active accounts</th><th>Inactive / suspended</th><th>Total</th></tr></thead><tbody>
+        {roleDetails.map(([label, data]) => <tr key={label}><td>{label}</td><td>{data?.active || 0}</td><td>{Number(data?.inactive || 0) + Number(data?.suspended || 0)}</td><td>{data?.total || 0}</td></tr>)}
+      </tbody></table></div>
+      <div className="admin-card overflow-x-auto"><h4 className="mb-3 font-extrabold">Cashier portal actions</h4>{analytics?.cashierActivity?.length ? <table className="admin-table"><thead><tr><th>Cashier</th><th>Action</th><th>Property</th><th>Time</th></tr></thead><tbody>{analytics.cashierActivity.map((event) => <tr key={event.id}><td>{event.actorName}</td><td>{event.action}</td><td>{event.property_name || 'System-wide'}</td><td>{new Date(event.created_at).toLocaleString()}</td></tr>)}</tbody></table> : <p className="text-sm text-neutral-500">No cashier portal actions have been recorded yet.</p>}</div>
+      <div className="admin-card overflow-x-auto"><h4 className="mb-3 font-extrabold">Recent account activity</h4>{analytics?.recentActivity?.length ? <table className="admin-table"><thead><tr><th>Account</th><th>Portal</th><th>Action</th><th>Property</th><th>Time</th></tr></thead><tbody>{analytics.recentActivity.map((event) => <tr key={event.id}><td>{event.actorName}</td><td className="capitalize">{String(event.actor_role || 'account').replaceAll('_', ' ')}</td><td>{event.action}</td><td>{event.property_name || 'System-wide'}</td><td>{new Date(event.created_at).toLocaleString()}</td></tr>)}</tbody></table> : <p className="text-sm text-neutral-500">No recent account actions recorded.</p>}</div>
+      <div className="admin-card overflow-x-auto"><h4 className="mb-3 font-extrabold">Booking status across all portals</h4><div className="flex flex-wrap gap-3">{Object.entries(analytics?.bookings || {}).map(([status, count]) => <span key={status} className="status-badge">{status.replaceAll('_', ' ')}: {count}</span>)}</div></div>
+      <div className="admin-card overflow-x-auto"><h4 className="mb-3 font-extrabold">Cashier shifts across the system</h4>{analytics?.shifts?.length ? <table className="admin-table"><thead><tr><th>Cashier</th><th>Opened</th><th>Closed</th><th>Status</th><th>Transactions</th><th>Collected</th><th>Cash variance</th></tr></thead><tbody>{analytics.shifts.map((shift) => <tr key={shift.id}><td>{shift.cashierName}</td><td>{new Date(shift.open_time).toLocaleString()}</td><td>{shift.close_time ? new Date(shift.close_time).toLocaleString() : '—'}</td><td><span className={`status-badge status-${shift.status}`}>{shift.status}</span></td><td>{shift.transaction_count}</td><td>{money(shift.amount_collected)}</td><td>{shift.actual_closing_balance === null ? '—' : money(Number(shift.actual_closing_balance) - Number(shift.expected_closing_balance || 0))}</td></tr>)}</tbody></table> : <p className="text-sm text-neutral-500">No cashier shifts have been recorded.</p>}</div>
+    </>}
+  </section>
 }
 
 function Properties({ properties, onAdd, onEdit, onRoomReady }) {
@@ -258,21 +344,21 @@ function Availability({ bookings, properties }) {
 function RoomServices({ services, guestRequests = [], onUpdate, onUpdateGuest }) {
   return <section className="admin-card space-y-4 overflow-x-auto"><div><h3 className="font-extrabold">Guest room services</h3><p className="text-sm text-neutral-500">Review cleaning, laundry, transfers, and other requested services.</p></div>
     {services.length ? <table className="admin-table"><thead><tr><th>Service</th><th>Guest</th><th>Property</th><th>Stay</th><th>Amount</th><th>Status</th><th>Action</th></tr></thead><tbody>{services.map((service) => <tr key={service.id}><td>{service.service_name} × {service.quantity}</td><td>{service.first_name} {service.last_name}</td><td>{service.property_name}</td><td>{formatDate(service.check_in_date)} – {formatDate(service.check_out_date)}</td><td>{money(Number(service.unit_price) * Number(service.quantity))}</td><td><span className={`status-badge status-${service.status}`}>{service.status}</span></td><td className="flex gap-2">{service.status === 'pending' && <><button onClick={() => onUpdate(service.id, 'approved')} className="btn-primary text-xs">Approve</button><button onClick={() => onUpdate(service.id, 'declined')} className="btn-secondary text-xs">Decline</button></>}{service.status === 'approved' && <button onClick={() => onUpdate(service.id, 'fulfilled')} className="btn-primary text-xs">Mark complete</button>}</td></tr>)}</tbody></table> : <p className="py-5 text-sm text-neutral-500">No guest service requests found.</p>}
-    <section className="admin-card space-y-4 overflow-x-auto"><div><h3 className="font-extrabold">In-stay guest orders</h3><p className="text-sm text-neutral-500">Food delivery, rides, cleaning, and laundry requests for your properties.</p></div>
+    <section className="admin-card space-y-4 overflow-x-auto"><div><h3 className="font-extrabold">In-stay guest orders</h3><p className="text-sm text-neutral-500">Food delivery, rides, cleaning, and laundry requests across the system.</p></div>
       {guestRequests.length ? <table className="admin-table"><thead><tr><th>Service</th><th>Guest</th><th>Details / Location</th><th>Status</th><th>Action</th></tr></thead><tbody>{guestRequests.map((request) => <tr key={request.id}><td className="capitalize">{request.service_type}</td><td>{request.first_name} {request.last_name}</td><td style={{ whiteSpace: 'normal' }}>{request.request_details}{request.service_type === 'transport' ? <span className="block text-xs text-neutral-500">{request.pickup_location} → {request.destination}</span> : <span className="block text-xs text-neutral-500">{request.service_location}</span>}</td><td><span className={`status-badge status-${request.status}`}>{request.status}</span></td><td className="flex gap-2">{request.status === 'requested' && <><button onClick={() => onUpdateGuest(request.id, 'accepted')} className="btn-primary text-xs">Accept</button><button onClick={() => onUpdateGuest(request.id, 'declined')} className="btn-secondary text-xs">Decline</button></>}{request.status === 'accepted' && <button onClick={() => onUpdateGuest(request.id, 'in_progress')} className="btn-primary text-xs">Start</button>}{request.status === 'in_progress' && <button onClick={() => onUpdateGuest(request.id, 'completed')} className="btn-primary text-xs">Complete</button>}</td></tr>)}</tbody></table> : <p className="py-4 text-sm text-neutral-500">No in-stay guest orders yet.</p>}
     </section>
   </section>
 }
 
-function Finances({ payments, monthlyRevenue, stats }) {
-  return <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-3"><div className="admin-card"><Value label="Paid this month" value={money(stats.monthly_revenue)} /></div><div className="admin-card"><Value label="Payment records" value={payments.length} /></div><div className="admin-card"><Value label="Pending payment amount" value={money(payments.filter((p) => ['pending', 'partially_paid'].includes(p.status)).reduce((sum, p) => sum + Number(p.amount), 0))} /></div></div>
+function Finances({ payments, monthlyRevenue, stats, onExportPdf, exportingPdf }) {
+  return <div className="space-y-5"><div className="flex justify-end"><button type="button" className="btn-primary" disabled={exportingPdf} onClick={onExportPdf}>{exportingPdf ? 'Generating PDF…' : 'Export system financial report PDF'}</button></div><div className="grid gap-4 sm:grid-cols-3"><div className="admin-card"><Value label="Paid this month" value={money(stats.monthly_revenue)} /></div><div className="admin-card"><Value label="Payment records" value={payments.length} /></div><div className="admin-card"><Value label="Pending payment amount" value={money(payments.filter((p) => ['pending', 'partially_paid'].includes(p.status)).reduce((sum, p) => sum + Number(p.amount), 0))} /></div></div>
     <section className="admin-card space-y-4 overflow-x-auto"><h3 className="font-extrabold">Monthly paid revenue</h3>{monthlyRevenue.length ? <table className="admin-table"><thead><tr><th>Month</th><th>Successful payments</th><th>Paid amount</th></tr></thead><tbody>{monthlyRevenue.map((row) => <tr key={row.month}><td>{row.month}</td><td>{row.payment_count}</td><td>{money(row.revenue)}</td></tr>)}</tbody></table> : <p className="text-sm text-neutral-500">No paid revenue recorded in this period.</p>}</section>
     <section className="admin-card space-y-4 overflow-x-auto"><h3 className="font-extrabold">Payment history</h3>{payments.length ? <table className="admin-table"><thead><tr><th>Date</th><th>Property</th><th>Stay</th><th>Method</th><th>Reference</th><th>Status</th><th>Amount</th></tr></thead><tbody>{payments.map((p) => <tr key={p.id}><td>{formatDate(p.created_at)}</td><td>{p.property_name}</td><td>{formatDate(p.check_in_date)} – {formatDate(p.check_out_date)}</td><td>{p.method}</td><td>{p.transaction_ref || '—'}</td><td>{p.status}</td><td>{money(p.amount)}</td></tr>)}</tbody></table> : <p className="text-sm text-neutral-500">No payments recorded.</p>}</section>
   </div>
 }
 
 function Reviews({ reviews }) {
-  return <section className="admin-card space-y-4 overflow-x-auto"><div className="flex items-center gap-2"><FaStar className="text-neutral-500" /><div><h3 className="font-extrabold">Guest reviews</h3><p className="text-sm text-neutral-500">Reviews for your properties, including their moderation status.</p></div></div>
+  return <section className="admin-card space-y-4 overflow-x-auto"><div className="flex items-center gap-2"><FaStar className="text-neutral-500" /><div><h3 className="font-extrabold">Guest reviews</h3><p className="text-sm text-neutral-500">Reviews across the system, including their moderation status.</p></div></div>
     {reviews.length ? <table className="admin-table"><thead><tr><th>Property</th><th>Guest</th><th>Rating</th><th>Review</th><th>Status</th><th>Date</th></tr></thead><tbody>{reviews.map((review) => <tr key={review.id}><td>{review.property_name}</td><td>{review.first_name} {review.last_name}</td><td>{'★'.repeat(Number(review.rating))}</td><td>{review.title && <strong>{review.title}: </strong>}{review.comment}</td><td>{review.status}</td><td>{formatDate(review.created_at)}</td></tr>)}</tbody></table> : <p className="py-5 text-sm text-neutral-500">No reviews yet.</p>}
   </section>
 }

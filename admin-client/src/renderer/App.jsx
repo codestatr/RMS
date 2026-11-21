@@ -146,9 +146,6 @@ export default function App() {
       window.ipcRenderer.on('sync:start', handleSyncStart);
       window.ipcRenderer.on('sync:complete', handleSyncComplete);
       window.ipcRenderer.on('sync:error', handleSyncError);
-      window.ipcRenderer.invoke('sync:status').then((status) => {
-        if (status?.lastSync) setLastSyncTime(new Date(status.lastSync).toLocaleTimeString());
-      }).catch(() => {});
     }
 
     return () => {
@@ -178,6 +175,12 @@ export default function App() {
     return () => { clearTimeout(initialSync); clearInterval(interval); };
   }, [user]);
 
+  useEffect(() => {
+    if (user?.role === 'property_owner' && currentPage === 'cashier_terminal') {
+      setCurrentPage('owner_portal');
+    }
+  }, [user, currentPage]);
+
   if (!user) {
     return <Suspense fallback={<div className="page-loading" role="status">Loading…</div>}><Login onLogin={(authUser) => { setUser(authUser); setCurrentPage(getHomePage(authUser.role)); }} /></Suspense>;
   }
@@ -188,7 +191,9 @@ export default function App() {
       case 'dashboard':
         return <Dashboard user={user} userRole={user?.role} onNavigate={setCurrentPage} />;
       case 'cashier_terminal':
-        return <CashierTerminal isAdmin={user?.role === 'admin'} onSwitchToAdmin={() => setCurrentPage('dashboard')} onLogout={logout} initialTab="walkin" />;
+        return ['admin', 'cashier'].includes(user?.role)
+          ? <CashierTerminal isAdmin={user?.role === 'admin'} onSwitchToAdmin={() => setCurrentPage('dashboard')} onLogout={logout} initialTab="walkin" />
+          : <OwnerPortal user={user} onUserUpdate={setUser} />;
       case 'frontdesk':
         return <CashierTerminal isAdmin={user?.role === 'admin'} onSwitchToAdmin={() => setCurrentPage('dashboard')} onLogout={logout} initialTab="frontdesk" />;
       case 'cashier_shifts':
@@ -198,7 +203,7 @@ export default function App() {
       case 'properties':
         return <Properties />;
       case 'bookings':
-        return <Bookings onNewBooking={() => setCurrentPage('cashier_terminal')} />;
+        return <Bookings showNewBooking={user?.role !== 'property_owner'} onNewBooking={() => setCurrentPage('cashier_terminal')} />;
       case 'payments':
         return <Payments />;
       case 'shifts':

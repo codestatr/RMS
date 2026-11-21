@@ -161,10 +161,18 @@ class PaymentService {
    * Get all payments (admin)
    */
   async getAllPayments(filters = {}, page = 1, limit = 20, issuedBy = null) {
-    const { status, method, startDate, endDate } = filters
+    const { status, method, startDate, endDate, propertyIds = null } = filters
 
     let whereClause = 'WHERE 1=1'
     const params = []
+
+    if (Array.isArray(propertyIds)) {
+      if (!propertyIds.length) whereClause += ' AND 1 = 0'
+      else {
+        whereClause += ` AND b.property_id IN (${propertyIds.map(() => '?').join(',')})`
+        params.push(...propertyIds)
+      }
+    }
 
     if (issuedBy) {
       whereClause += ' AND p.issued_by = ?'
@@ -194,7 +202,7 @@ class PaymentService {
     const offset = (page - 1) * limit
 
     const countResult = await query(
-      `SELECT COUNT(*) as total FROM payments p ${whereClause}`,
+      `SELECT COUNT(*) as total FROM payments p JOIN bookings b ON p.booking_id = b.id ${whereClause}`,
       params
     )
     const total = countResult[0].total

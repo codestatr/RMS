@@ -40,12 +40,16 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
     if (!stkWaiting || !checkoutRequestId || !pendingBookingId) return undefined;
 
     let isActive = true;
+    let requestInFlight = false;
     const token = sessionStorage.getItem('rms_admin_token') || '';
     const interval = window.setInterval(async () => {
+      // Do not stack status checks if the API takes longer than the polling interval.
+      if (!isActive || requestInFlight) return;
+      requestInFlight = true;
       try {
         const statusResponse = await axios.get(
           `${API_URL}/payments/mpesa/status/${encodeURIComponent(checkoutRequestId)}`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 },
         );
         const status = statusResponse.data?.data;
 
@@ -53,6 +57,7 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
           window.clearInterval(interval);
           const receiptResponse = await axios.get(`${API_URL}/receipts/payment/${status.id}`, {
             headers: { Authorization: `Bearer ${token}` },
+            timeout: 10000,
           });
           if (!isActive) return;
 
@@ -95,6 +100,8 @@ export default function CashierTender({ bookingData, onBack, onComplete }) {
         }
       } catch (error) {
         console.warn('Waiting for M-Pesa confirmation:', error.response?.data?.error || error.message);
+      } finally {
+        requestInFlight = false;
       }
     }, 3000);
 

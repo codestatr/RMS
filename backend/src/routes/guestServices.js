@@ -7,6 +7,10 @@ import { query } from '../database/db.js'
 import { v4 as uuidv4 } from 'uuid'
 import { ValidationError, NotFoundError } from '../utils/errors.js'
 
+function preventGlobalCateringAccess(req) {
+  if (req.user.ownerScopedStaff) throw new ValidationError('This account can manage guest services only within its assigned properties')
+}
+
 const router = express.Router()
 
 router.get('/mine', authenticate, requireRole('customer'), asyncHandler(async (req, res) => {
@@ -37,22 +41,26 @@ router.get('/catering-menu', asyncHandler(async (_req, res) => {
 }))
 
 router.post('/catering-menu', authenticate, requireRole('admin', 'catering'), asyncHandler(async (req, res) => {
+  preventGlobalCateringAccess(req)
   const data = await GuestServiceService.createCateringMenuItem(req.user, req.body || {})
   res.status(201).json({ success: true, message: 'Catering menu item added', data })
 }))
 
 router.patch('/catering-menu/:id/availability', authenticate, requireRole('admin', 'catering'), asyncHandler(async (req, res) => {
+  preventGlobalCateringAccess(req)
   const data = await GuestServiceService.setCateringMenuItemAvailability(req.params.id, req.body?.isAvailable)
   res.json({ success: true, message: 'Catering menu availability updated', data })
 }))
 
-router.get('/catering-walkins', authenticate, requireRole('admin', 'catering'), asyncHandler(async (_req, res) => {
+router.get('/catering-walkins', authenticate, requireRole('admin', 'catering'), asyncHandler(async (req, res) => {
+  preventGlobalCateringAccess(req)
   const data = await query(`SELECT * FROM catering_walkin_orders
     ORDER BY FIELD(status, 'accepted', 'in_progress', 'completed', 'cancelled'), created_at DESC LIMIT 300`)
   res.json({ success: true, data })
 }))
 
 router.post('/catering-walkins', authenticate, requireRole('admin', 'catering'), asyncHandler(async (req, res) => {
+  preventGlobalCateringAccess(req)
   const guestName = String(req.body?.guestName || '').trim().slice(0, 200)
   const phone = String(req.body?.phone || '').trim().slice(0, 30)
   const orderDetails = String(req.body?.orderDetails || '').trim().slice(0, 2000)
@@ -70,11 +78,13 @@ router.post('/catering-walkins', authenticate, requireRole('admin', 'catering'),
 }))
 
 router.post('/catering-walkins/:id/payment/mpesa', authenticate, requireRole('admin', 'catering'), asyncHandler(async (req, res) => {
+  preventGlobalCateringAccess(req)
   const data = await MpesaService.createCateringWalkinStkPayment({ orderId: req.params.id, phone: req.body?.phone })
   res.status(201).json({ success: true, message: 'M-Pesa prompt sent for the walk-in catering order', data })
 }))
 
 router.patch('/catering-walkins/:id', authenticate, requireRole('admin', 'catering'), asyncHandler(async (req, res) => {
+  preventGlobalCateringAccess(req)
   const [order] = await query('SELECT * FROM catering_walkin_orders WHERE id = ?', [req.params.id])
   if (!order) throw new NotFoundError('Walk-in catering order')
   const { action, receiptNumber } = req.body || {}
@@ -105,11 +115,16 @@ router.get('/', authenticate, requireRole('admin', 'cashier', 'property_owner', 
 }))
 
 router.patch('/:id/photos', authenticate, requireRole('admin', 'catering'), asyncHandler(async (req, res) => {
+  preventGlobalCateringAccess(req)
   const data = await GuestServiceService.shareMenuItems(req.params.id, req.body?.menuItemIds, req.user)
   res.json({ success: true, message: 'Food photos sent to guest', data })
 }))
 
 router.post('/:id/payment/verify', authenticate, requireRole('admin', 'cashier', 'catering'), asyncHandler(async (req, res) => {
+  if (req.user.ownerScopedStaff) {
+    const [request] = await query('SELECT property_id FROM guest_service_requests WHERE id = ?', [req.params.id])
+    if (!request || !req.user.propertyIds.includes(request.property_id)) throw new ValidationError('Service request is outside your assigned properties')
+  }
   const data = await GuestServiceService.verifyGuestServicePayment(req.params.id, req.body?.receiptNumber, req.user)
   res.json({ success: true, message: 'M-Pesa receipt verified; the catering order can proceed', data })
 }))

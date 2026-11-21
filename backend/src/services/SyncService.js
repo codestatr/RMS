@@ -1,12 +1,13 @@
 import { query, transaction } from '../database/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { hashPassword } from '../utils/auth.js';
+import { ValidationError } from '../utils/errors.js';
 
 class SyncService {
   /**
    * Pull delta updates from central MySQL database
    */
-  async pullUpdates(sinceTimestamp = null, cursors = {}) {
+  async pullUpdates(sinceTimestamp = null, cursors = {}, propertyIds = null) {
     const defaultTime = '1970-01-01 00:00:00';
     const cutoff = sinceTimestamp || defaultTime;
     const batchSize = 250;
@@ -33,8 +34,9 @@ class SyncService {
               p.price_per_night, p.status, p.created_at, p.updated_at
        FROM properties p
        WHERE p.updated_at >= ? AND (p.updated_at > ? OR (p.updated_at = ? AND p.id > ?))
+         ${Array.isArray(propertyIds) ? `AND p.id IN (${propertyIds.length ? propertyIds.map(() => '?').join(',') : 'NULL'})` : ''}
        ORDER BY p.updated_at, p.id LIMIT ?`,
-      [cutoff, propertyCursor.updatedAt, propertyCursor.updatedAt, propertyCursor.id, batchSize]
+      [cutoff, propertyCursor.updatedAt, propertyCursor.updatedAt, propertyCursor.id, ...(propertyIds || []), batchSize]
     ) : [];
 
     const bookingCursor = cursor('bookings');
@@ -46,17 +48,19 @@ class SyncService {
        JOIN properties p ON b.property_id = p.id
        JOIN users u ON b.customer_id = u.id
        WHERE b.updated_at >= ? AND (b.updated_at > ? OR (b.updated_at = ? AND b.id > ?))
+         ${Array.isArray(propertyIds) ? `AND b.property_id IN (${propertyIds.length ? propertyIds.map(() => '?').join(',') : 'NULL'})` : ''}
        ORDER BY b.updated_at, b.id LIMIT ?`,
-      [cutoff, bookingCursor.updatedAt, bookingCursor.updatedAt, bookingCursor.id, batchSize]
+      [cutoff, bookingCursor.updatedAt, bookingCursor.updatedAt, bookingCursor.id, ...(propertyIds || []), batchSize]
     ) : [];
 
     const paymentCursor = cursor('payments');
     const payments = paymentCursor ? await query(
       `SELECT p.id, p.booking_id, p.amount, p.method, p.status, p.transaction_ref, p.created_at, p.updated_at
-       FROM payments p
+       FROM payments p JOIN bookings b ON b.id = p.booking_id
        WHERE p.updated_at >= ? AND (p.updated_at > ? OR (p.updated_at = ? AND p.id > ?))
+         ${Array.isArray(propertyIds) ? `AND b.property_id IN (${propertyIds.length ? propertyIds.map(() => '?').join(',') : 'NULL'})` : ''}
        ORDER BY p.updated_at, p.id LIMIT ?`,
-      [cutoff, paymentCursor.updatedAt, paymentCursor.updatedAt, paymentCursor.id, batchSize]
+      [cutoff, paymentCursor.updatedAt, paymentCursor.updatedAt, paymentCursor.id, ...(propertyIds || []), batchSize]
     ) : [];
 
     const nowResult = await query('SELECT NOW() as sync_server_time');
@@ -80,7 +84,7 @@ class SyncService {
   /**
    * Push queued offline records to MySQL
    */
-  async pushUpdates(deviceId, payload) {
+  async pushUpdates(deviceId, payload, user = null) {
     const { properties = [], bookings = [], payments = [], shifts = [], logs = [] } = payload;
     let syncedCount = 0;
     const conflicts = [];
@@ -88,6 +92,7 @@ class SyncService {
     await transaction(async (connection) => {
       // 1. Process Properties
       for (const prop of properties) {
+        if (user?.ownerScopedStaff) throw new ValidationError('Owner-assigned staff cannot create or edit property listings through sync')
         const [existing] = await connection.execute('SELECT id, updated_at FROM properties WHERE id = ?', [prop.id]);
         if (existing.length === 0) {
           await connection.execute(
@@ -138,13 +143,16 @@ class SyncService {
 
       // 2. Process Bookings
       for (const b of bookings) {
+        const propertyId = b.propertyId || b.property_id
+        if (user?.ownerScopedStaff && !user.propertyIds.includes(propertyId)) throw new ValidationError('Booking is outside your assigned properties')
         const customerId = await this.resolveBookingCustomer(connection, b);
         const pickupDestination = b.pickupDestination || b.pickup_destination;
         const pickupNotes = [
           b.pickupNotes || b.pickup_notes,
           pickupDestination ? `Room destination: ${pickupDestination}` : '',
         ].filter(Boolean).join(' | ') || null;
-        const [existing] = await connection.execute('SELECT id, updated_at, status FROM bookings WHERE id = ?', [b.id]);
+        const [existing] = await connection.execute('SELECT id, updated_at, status, property_id FROM bookings WHERE id = ?', [b.id]);
+        if (user?.ownerScopedStaff && existing[0] && !user.propertyIds.includes(existing[0].property_id)) throw new ValidationError('Booking update is outside your assigned properties')
         if (existing.length === 0) {
           await connection.execute(
             `INSERT INTO bookings (
@@ -196,7 +204,16 @@ class SyncService {
 
       // 3. Process Payments
       for (const p of payments) {
-        const [existing] = await connection.execute('SELECT id FROM payments WHERE id = ?', [p.id]);
+        if (user?.ownerScopedStaff) {
+          const bookingId = p.bookingId || p.booking_id
+          const [booking] = await connection.execute('SELECT property_id FROM bookings WHERE id = ?', [bookingId]);
+          if (!booking?.[0] || !user.propertyIds.includes(booking[0].property_id)) throw new ValidationError('Payment is outside your assigned properties')
+        }
+        const [existing] = await connection.execute('SELECT id, booking_id FROM payments WHERE id = ?', [p.id]);
+        if (user?.ownerScopedStaff && existing[0]) {
+          const [oldBooking] = await connection.execute('SELECT property_id FROM bookings WHERE id = ?', [existing[0].booking_id]);
+          if (!oldBooking?.[0] || !user.propertyIds.includes(oldBooking[0].property_id)) throw new ValidationError('Payment update is outside your assigned properties')
+        }
         if (existing.length === 0) {
           await connection.execute(
             `INSERT INTO payments (
@@ -232,7 +249,9 @@ class SyncService {
 
       // 4. Process Shifts
       for (const s of shifts) {
-        const [existing] = await connection.execute('SELECT id FROM shifts WHERE id = ?', [s.id]);
+        if (user?.ownerScopedStaff && (s.cashierId || s.cashier_id) !== user.id) throw new ValidationError('You can only sync your own shifts')
+        const [existing] = await connection.execute('SELECT id, cashier_id FROM shifts WHERE id = ?', [s.id]);
+        if (user?.ownerScopedStaff && existing[0] && existing[0].cashier_id !== user.id) throw new ValidationError('You can only update your own shifts')
         if (existing.length === 0) {
           await connection.execute(
             `INSERT INTO shifts (

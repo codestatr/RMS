@@ -1091,6 +1091,16 @@ textarea:focus {
   font-size: 0.75rem;
 }
 
+.staff-create-error {
+  padding: 10px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .staff-form-actions {
   display: flex;
   justify-content: flex-end;
@@ -1437,6 +1447,53 @@ textarea:focus {
   background: #f8fafc;
   color: var(--neutral-900);
   font-size: 0.9rem;
+}
+
+.admin-login-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto;
+  overflow-y: auto;
+  user-select: text;
+}
+
+.admin-login-card {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.admin-login-form input:not([type='checkbox']),
+.admin-login-form select {
+  min-height: 50px;
+  border: 2px solid #8b9690;
+  background-color: #ffffff;
+  color: #17231d !important;
+  -webkit-text-fill-color: #17231d;
+  font-size: 1rem;
+  font-weight: 650;
+  opacity: 1;
+}
+
+.admin-login-form input:not([type='checkbox'])::placeholder {
+  color: #626b65;
+  -webkit-text-fill-color: #626b65;
+  opacity: 1;
+}
+
+.admin-login-form input:not([type='checkbox']):focus,
+.admin-login-form select:focus {
+  border-color: var(--primary-600);
+  outline: 3px solid rgba(23, 107, 82, 0.2);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.admin-login-form input:not([type='checkbox']):-webkit-autofill,
+.admin-login-form input:not([type='checkbox']):-webkit-autofill:hover,
+.admin-login-form input:not([type='checkbox']):-webkit-autofill:focus {
+  -webkit-text-fill-color: #17231d;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 9999s ease-out;
 }
 
 .admin-login-form .btn-amber {
