@@ -11,6 +11,7 @@ import {
 } from 'react-icons/fa';
 import axios from 'axios';
 import { getBranding } from '../../utils/branding';
+import { downloadCsv, dateStamp } from '../../utils/csvExport';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -44,10 +45,18 @@ export default function CashierTransactions() {
   const loadTransactions = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/payments`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
-      });
-      setTransactions(res.data?.data?.data || res.data?.data || []);
+      const headers = { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` };
+      const result = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res = await axios.get(`${API_URL}/payments`, { headers, params: { page, limit: 100 } });
+        const payload = res.data?.data;
+        result.push(...(Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []));
+        totalPages = Math.max(1, Number(payload?.pagination?.pages) || 1);
+        page += 1;
+      } while (page <= totalPages);
+      setTransactions(result);
     } catch {
       setTransactions([]);
     } finally {
@@ -68,6 +77,14 @@ export default function CashierTransactions() {
   const handleReprintReceipt = (transaction) => {
     setSelectedReceipt(transaction);
   };
+
+  const exportTransactions = () => downloadCsv(`RMS_Cashier_Transactions_${dateStamp()}.csv`, [
+    'Payment ID', 'Receipt number', 'Guest', 'Property', 'Method', 'Amount (KES)', 'Status', 'Transaction reference', 'Date', 'Cashier',
+  ], filtered.map((transaction) => [
+    transaction.id, transaction.receiptNumber, resolveGuestName(transaction),
+    transaction.propertyName || transaction.property_name, transaction.method, transaction.amount,
+    transaction.status, transaction.transactionRef, transaction.createdAt, transaction.issuedBy || transaction.cashierName,
+  ]));
 
   const downloadReceiptPdf = async () => {
     if (!selectedReceipt?.id) {
@@ -113,6 +130,7 @@ export default function CashierTransactions() {
           />
           <FaSearch />
         </div>
+        <button type="button" className="btn-secondary" onClick={exportTransactions} disabled={!filtered.length}>Export CSV</button>
       </div>
 
       <div className="transactions-card">

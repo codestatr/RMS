@@ -3,6 +3,7 @@ import axios from 'axios'
 import '../../styles/owner-portal.css'
 import { OperationsOverview } from './Dashboard'
 import { optimizePropertyImage } from '../utils/propertyImages'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 import OwnerTeam from './owner/OwnerTeam'
 import {
   FaBed, FaBuilding, FaCalendarAlt, FaCalendarCheck, FaCheck, FaConciergeBell,
@@ -173,6 +174,21 @@ export default function OwnerPortal({ user, onUserUpdate }) {
     }
   }
 
+  function exportOwnerFinancialCsv() {
+    const rows = [
+      ...overview.payments.map((payment) => [
+        'Payment', payment.created_at, payment.property_name, payment.check_in_date, payment.check_out_date,
+        payment.method, payment.transaction_ref, payment.status, payment.amount,
+      ]),
+      ...overview.monthlyRevenue.map((month) => [
+        'Monthly revenue', month.month, '', '', '', '', `${month.payment_count} payments`, 'paid', month.revenue,
+      ]),
+    ]
+    downloadCsv(`Owner_Financial_Report_${dateStamp()}.csv`, [
+      'Record type', 'Date / month', 'Property', 'Check-in', 'Check-out', 'Method', 'Reference / count', 'Status', 'Amount (KES)',
+    ], rows)
+  }
+
   const stats = overview.stats || {}
   const tabs = [
     ['overview', 'Dashboard'], ['analytics', 'System analytics'], ['properties', 'Property listings'], ['bookings', 'Bookings'],
@@ -223,7 +239,7 @@ export default function OwnerPortal({ user, onUserUpdate }) {
 
       {activeTab === 'services' && <RoomServices services={overview.services} guestRequests={overview.guestServiceRequests} onUpdate={updateService} onUpdateGuest={updateGuestService} />}
 
-      {activeTab === 'finance' && <Finances payments={overview.payments} monthlyRevenue={overview.monthlyRevenue} stats={stats} onExportPdf={exportFinancialPdf} exportingPdf={exportingPdf} />}
+      {activeTab === 'finance' && <Finances payments={overview.payments} monthlyRevenue={overview.monthlyRevenue} stats={stats} onExportPdf={exportFinancialPdf} onExportCsv={exportOwnerFinancialCsv} exportingPdf={exportingPdf} />}
 
       {activeTab === 'reviews' && <Reviews reviews={overview.reviews} />}
 
@@ -350,8 +366,8 @@ function RoomServices({ services, guestRequests = [], onUpdate, onUpdateGuest })
   </section>
 }
 
-function Finances({ payments, monthlyRevenue, stats, onExportPdf, exportingPdf }) {
-  return <div className="space-y-5"><div className="flex justify-end"><button type="button" className="btn-primary" disabled={exportingPdf} onClick={onExportPdf}>{exportingPdf ? 'Generating PDF…' : 'Export system financial report PDF'}</button></div><div className="grid gap-4 sm:grid-cols-3"><div className="admin-card"><Value label="Paid this month" value={money(stats.monthly_revenue)} /></div><div className="admin-card"><Value label="Payment records" value={payments.length} /></div><div className="admin-card"><Value label="Pending payment amount" value={money(payments.filter((p) => ['pending', 'partially_paid'].includes(p.status)).reduce((sum, p) => sum + Number(p.amount), 0))} /></div></div>
+function Finances({ payments, monthlyRevenue, stats, onExportPdf, onExportCsv, exportingPdf }) {
+  return <div className="space-y-5"><div className="flex flex-wrap justify-end gap-2"><button type="button" className="btn-secondary" onClick={onExportCsv} disabled={!payments.length && !monthlyRevenue.length}>Export CSV</button><button type="button" className="btn-primary" disabled={exportingPdf} onClick={onExportPdf}>{exportingPdf ? 'Generating PDF…' : 'Export financial report PDF'}</button></div><div className="grid gap-4 sm:grid-cols-3"><div className="admin-card"><Value label="Paid this month" value={money(stats.monthly_revenue)} /></div><div className="admin-card"><Value label="Payment records" value={payments.length} /></div><div className="admin-card"><Value label="Pending payment amount" value={money(payments.filter((p) => ['pending', 'partially_paid'].includes(p.status)).reduce((sum, p) => sum + Number(p.amount), 0))} /></div></div>
     <section className="admin-card space-y-4 overflow-x-auto"><h3 className="font-extrabold">Monthly paid revenue</h3>{monthlyRevenue.length ? <table className="admin-table"><thead><tr><th>Month</th><th>Successful payments</th><th>Paid amount</th></tr></thead><tbody>{monthlyRevenue.map((row) => <tr key={row.month}><td>{row.month}</td><td>{row.payment_count}</td><td>{money(row.revenue)}</td></tr>)}</tbody></table> : <p className="text-sm text-neutral-500">No paid revenue recorded in this period.</p>}</section>
     <section className="admin-card space-y-4 overflow-x-auto"><h3 className="font-extrabold">Payment history</h3>{payments.length ? <table className="admin-table"><thead><tr><th>Date</th><th>Property</th><th>Stay</th><th>Method</th><th>Reference</th><th>Status</th><th>Amount</th></tr></thead><tbody>{payments.map((p) => <tr key={p.id}><td>{formatDate(p.created_at)}</td><td>{p.property_name}</td><td>{formatDate(p.check_in_date)} – {formatDate(p.check_out_date)}</td><td>{p.method}</td><td>{p.transaction_ref || '—'}</td><td>{p.status}</td><td>{money(p.amount)}</td></tr>)}</tbody></table> : <p className="text-sm text-neutral-500">No payments recorded.</p>}</section>
   </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { FiPlus, FiSearch } from 'react-icons/fi'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 import '../../styles/payments.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -199,6 +200,13 @@ export default function Payments() {
     }
   }
 
+  const exportPayments = () => downloadCsv(`RMS_Payments_${dateStamp()}.csv`, [
+    'Payment ID', 'Date', 'Customer', 'Property', 'Booking ID', 'Amount (KES)', 'Method', 'Status', 'Transaction reference',
+  ], filteredPayments.map((payment) => [
+    payment.id, payment.createdAt, payment.customerName, payment.propertyName, payment.bookingId,
+    payment.amount, payment.method, payment.status, payment.transactionRef,
+  ]))
+
   if (loading) {
     return <div className="loading-spinner">Loading payments...</div>
   }
@@ -252,6 +260,9 @@ export default function Payments() {
         <button type="button" className="btn-primary" onClick={openRecordPayment}>
           <FiPlus size={20} />
           Record Payment
+        </button>
+        <button type="button" className="btn-secondary" onClick={exportPayments} disabled={!filteredPayments.length}>
+          Export CSV
         </button>
       </div>
 

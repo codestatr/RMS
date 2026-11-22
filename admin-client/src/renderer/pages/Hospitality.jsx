@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { FaCheck, FaClock, FaPlane, FaTimes } from 'react-icons/fa'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 import '../../styles/hospitality.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -107,6 +108,21 @@ export default function Hospitality() {
     }
   }
 
+  const exportRequests = () => downloadCsv(`RMS_Hospitality_Requests_${dateStamp()}.csv`, [
+    'Request ID', 'Service', 'Guest', 'Phone', 'Property', 'Check-in', 'Check-out', 'Status', 'Fulfillment status', 'Assigned staff', 'Unit price (KES)',
+  ], requests.map((request) => [
+    request.id, request.service_name, `${request.first_name || ''} ${request.last_name || ''}`.trim(), request.phone,
+    request.property_name, request.check_in_date, request.check_out_date, request.status,
+    request.fulfillment_status, `${request.assigned_first_name || ''} ${request.assigned_last_name || ''}`.trim(), request.unit_price,
+  ]))
+
+  const exportGuestOrders = () => downloadCsv(`RMS_Guest_Service_Orders_${dateStamp()}.csv`, [
+    'Request ID', 'Service type', 'Guest', 'Property', 'Status', 'Payment status', 'Quoted amount (KES)', 'Created',
+  ], guestRequests.map((request) => [
+    request.id, request.service_type, `${request.first_name || ''} ${request.last_name || ''}`.trim(),
+    request.property_name, request.status, request.payment_status, request.quoted_amount, request.created_at,
+  ]))
+
   if (loading) return <div className="loading-spinner">Loading hospitality requests...</div>
 
   return (
@@ -118,13 +134,13 @@ export default function Hospitality() {
           </h2>
           <p className="text-xs text-neutral-500 mt-1">Approve airport pickups, cleaning, laundry, and arrival services requested by guests.</p>
         </div>
-        <select value={filter} onChange={(event) => setFilter(event.target.value)} className="p-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-bold">
+        <div className="flex flex-wrap items-center gap-2"><select value={filter} onChange={(event) => setFilter(event.target.value)} className="p-2.5 bg-white border border-neutral-300 rounded-xl text-xs font-bold">
           <option value="pending">Needs approval</option>
           <option value="approved">Approved</option>
           <option value="fulfilled">Fulfilled</option>
           <option value="declined">Declined</option>
           <option value="all">All requests</option>
-        </select>
+        </select><button type="button" className="btn-secondary" onClick={exportRequests} disabled={!requests.length}>Export CSV</button></div>
       </div>
 
       <div className="admin-card overflow-x-auto">
@@ -185,7 +201,7 @@ export default function Hospitality() {
       </div>
 
       <section className="admin-card hospitality-orders-card space-y-4">
-        <div><h3 className="text-lg font-extrabold text-neutral-900">In-stay service orders</h3><p className="text-xs text-neutral-500">Food to the room, transport from any pickup point, cleaning, and laundry.</p></div>
+        <div className="flex flex-wrap justify-between gap-3 items-center"><div><h3 className="text-lg font-extrabold text-neutral-900">In-stay service orders</h3><p className="text-xs text-neutral-500">Food to the room, transport from any pickup point, cleaning, and laundry.</p></div><button type="button" className="btn-secondary" onClick={exportGuestOrders} disabled={!guestRequests.length}>Export CSV</button></div>
         {!guestRequests.length ? <div className="empty-state"><p>No in-stay guest service orders yet.</p></div> : <div className="hospitality-order-list">
           {guestRequests.map((request) => {
             const draft = guestDrafts[request.id] || {}

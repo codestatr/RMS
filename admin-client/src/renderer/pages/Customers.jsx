@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaUserFriends, FaBan, FaCheck, FaSearch, FaTimes } from 'react-icons/fa';
 import axios from 'axios';
+import { downloadCsv, dateStamp } from '../utils/csvExport';
 
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
@@ -80,12 +81,31 @@ export default function Customers() {
     }
   };
 
+  const exportCustomerHistory = () => {
+    if (!selectedCustomer || !customerActivity) return;
+    downloadCsv(`Guest_History_${selectedCustomer.id}_${dateStamp()}.csv`, ['Metric', 'Value'], [
+      ['Customer', `${selectedCustomer.firstName} ${selectedCustomer.lastName}`],
+      ['Email', selectedCustomer.email],
+      ['Total stays', customerActivity.totalBookings],
+      ['Total spent (KES)', customerActivity.totalSpent],
+      ['Reviews given', customerActivity.reviewsGiven],
+      ['Average rating', customerActivity.averageRating],
+    ]);
+  };
+
   const filtered = customers.filter(
     (c) =>
       c.firstName?.toLowerCase().includes(search.toLowerCase()) ||
       c.lastName?.toLowerCase().includes(search.toLowerCase()) ||
       c.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const exportCustomers = () => downloadCsv(`RMS_Customers_${dateStamp()}.csv`, [
+    'Customer ID', 'First name', 'Last name', 'Email', 'Phone', 'City', 'Status', 'Member since',
+  ], filtered.map((customer) => [
+    customer.id, customer.firstName, customer.lastName, customer.email, customer.phone,
+    customer.city, customer.status, customer.createdAt,
+  ]));
 
   return (
     <div className="space-y-6">
@@ -104,6 +124,9 @@ export default function Customers() {
             className="w-full px-3 py-2 bg-white border border-neutral-300 rounded-lg text-xs"
           />
         </div>
+        <button type="button" className="btn-secondary" onClick={exportCustomers} disabled={!filtered.length}>
+          Export CSV
+        </button>
       </div>
 
       <div className="admin-card">
@@ -177,7 +200,7 @@ export default function Customers() {
                 <h3 id="customer-history-title">{selectedCustomer.firstName} {selectedCustomer.lastName}</h3>
                 <p>Guest history and account activity</p>
               </div>
-              <button type="button" onClick={() => { setSelectedCustomer(null); setCustomerActivity(null); }} className="customer-history-close" aria-label="Close guest history"><FaTimes /></button>
+              <div className="flex items-center gap-2"><button type="button" className="btn-secondary" onClick={exportCustomerHistory} disabled={activityLoading || !customerActivity}>Export summary</button><button type="button" onClick={() => { setSelectedCustomer(null); setCustomerActivity(null); }} className="customer-history-close" aria-label="Close guest history"><FaTimes /></button></div>
             </div>
             {activityLoading ? <p className="customer-history-message">Loading guest history...</p> : customerActivity ? (
               <div className="customer-history-metrics">

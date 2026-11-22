@@ -8,6 +8,7 @@ import {
   FaSearch,
   FaFilter,
 } from 'react-icons/fa';
+import { downloadCsv, dateStamp } from '../utils/csvExport';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -28,7 +29,7 @@ export default function Reviews() {
   useEffect(() => {
     async function loadReviews() {
       try {
-        const response = await axios.get(`${API_URL}/reviews?limit=100`, authConfig());
+        const response = await axios.get(`${API_URL}/reviews?limit=1000`, authConfig());
         setReviews(response.data?.data || []);
       } catch (error) {
         console.error('Failed to load reviews:', error);
@@ -54,6 +55,13 @@ export default function Reviews() {
   };
 
   const filtered = reviews.filter((r) => filterStatus === 'all' || r.status === filterStatus);
+
+  const exportReviews = () => downloadCsv(`RMS_Reviews_${dateStamp()}.csv`, [
+    'Review ID', 'Guest', 'Property', 'Rating', 'Title', 'Comment', 'Status', 'Date',
+  ], filtered.map((review) => [
+    review.id, review.customerName, review.propertyName, review.rating, review.title,
+    review.comment, review.status, review.createdAt,
+  ]));
 
   const avgRating = (reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)).toFixed(1);
 
@@ -83,6 +91,7 @@ export default function Reviews() {
             <option value="approved">Approved</option>
             <option value="pending">Pending Moderation</option>
           </select>
+          <button type="button" className="btn-secondary" onClick={exportReviews} disabled={!filtered.length}>Export CSV</button>
         </div>
       </div>
 

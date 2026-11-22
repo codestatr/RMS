@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react'
 import axios from 'axios'
 import { FaCheck, FaClock, FaUtensils } from 'react-icons/fa'
 import { optimizePropertyImage } from '../utils/propertyImages'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
 const authConfig = () => ({ headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || localStorage.getItem('rms_admin_token') || ''}` } })
@@ -123,6 +124,22 @@ export default function CateringPortal({ view = 'overview' }) {
     walkins: ['Walk-in orders', 'Take food orders from guests who are not ordering through a room booking.'],
   }[view] || ['Catering overview', 'Live summary of guest orders, payment status, and kitchen work.']
 
+  const exportOrders = () => {
+    if (view === 'walkins') {
+      downloadCsv(`RMS_Catering_Walkins_${dateStamp()}.csv`, [
+        'Order ID', 'Guest', 'Phone', 'Order details', 'Amount (KES)', 'Payment method', 'Payment status', 'Receipt', 'Order status', 'Created',
+      ], walkinOrders.map((order) => [order.id, order.guest_name, order.phone, order.order_details, order.quoted_amount, order.payment_method, order.payment_status, order.receipt_number, order.status, order.created_at]))
+      return
+    }
+    downloadCsv(`RMS_Catering_${view}_${dateStamp()}.csv`, [
+      'Request ID', 'Guest', 'Phone / email', 'Property', 'Service type', 'Request details', 'Quote (KES)', 'Payment status', 'Order status', 'Check-in', 'Check-out',
+    ], visibleOrders.map((order) => [
+      order.id, `${order.first_name || ''} ${order.last_name || ''}`.trim(), order.phone || order.email,
+      order.property_name, order.service_type, order.request_details, order.quoted_amount,
+      order.payment_status, order.status, order.check_in_date, order.check_out_date,
+    ]))
+  }
+
   async function addMenuItem(event) {
     event.preventDefault()
     if (!menuDraft.imageUrl) return window.alert('Choose a food photo first.')
@@ -213,6 +230,7 @@ export default function CateringPortal({ view = 'overview' }) {
       <div className="catering-portal-icon"><FaUtensils /></div>
       <div><h2>{viewHeading[0]}</h2><p>{viewHeading[1]}</p></div>
       <span className="catering-order-count">{orders.filter((order) => !['completed', 'declined'].includes(order.status)).length} open</span>
+      {(['orders', 'kitchen', 'history'].includes(view) && visibleOrders.length > 0 || view === 'walkins' && walkinOrders.length > 0) && <button type="button" className="btn-secondary" onClick={exportOrders}>Export CSV</button>}
     </header>
     {error && <div className="catering-error" role="alert">{error}</div>}
     {view === 'walkins' && <section className="catering-menu-panel">

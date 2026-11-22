@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FaClipboardList } from 'react-icons/fa';
+import { downloadCsv, dateStamp } from '../utils/csvExport';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -9,7 +10,7 @@ export default function AuditLogs() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API_URL}/audit?limit=100`, {
+    axios.get(`${API_URL}/audit?limit=200`, {
       headers: { Authorization: `Bearer ${sessionStorage.getItem('rms_admin_token') || ''}` },
     }).then((response) => {
       setLogs(response.data?.data || []);
@@ -18,6 +19,10 @@ export default function AuditLogs() {
     }).finally(() => setLoading(false));
   }, []);
 
+  const exportLogs = () => downloadCsv(`RMS_Audit_Log_${dateStamp()}.csv`, [
+    'Timestamp', 'User', 'Action', 'Entity type', 'Entity ID', 'IP address',
+  ], logs.map((log) => [log.timestamp, log.userName, log.action, log.entity_type, log.entity_id, log.ip_address]));
+
   return (
     <div className="space-y-6">
       <div className="admin-card">
@@ -25,6 +30,7 @@ export default function AuditLogs() {
           <FaClipboardList className="text-amber-500" /> Activity Audit Trail
         </h2>
         <p className="text-xs text-neutral-500 mt-1">Track staff actions across bookings, payments, shifts, and property operations.</p>
+        <button type="button" className="btn-secondary mt-3" onClick={exportLogs} disabled={loading || !logs.length}>Export CSV</button>
       </div>
       <div className="admin-card overflow-x-auto">
         {loading ? <p className="text-sm text-neutral-500">Loading activity...</p> : (

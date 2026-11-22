@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { FiPlus, FiEdit2, FiTrash2, FiSearch } from 'react-icons/fi'
 import PropertyForm from '../components/PropertyForm'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 import '../../styles/properties.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -142,6 +143,13 @@ export default function Properties() {
     }
   }
 
+  const exportProperties = () => downloadCsv(`RMS_Properties_${dateStamp()}.csv`, [
+    'Property ID', 'Name', 'Type', 'Address', 'City', 'Price per night (KES)', 'Capacity', 'Status', 'Owner ID',
+  ], filteredProperties.map((property) => [
+    property.id, property.name, property.type, property.address, property.city,
+    property.pricePerNight || property.price_per_night, property.capacity, property.status, property.ownerId,
+  ]))
+
   if (loading) {
     return <div className="loading-spinner">Loading properties...</div>
   }
@@ -163,6 +171,9 @@ export default function Properties() {
         <button className="btn-primary" onClick={handleAddProperty}>
           <FiPlus size={20} />
           Add Property
+        </button>
+        <button type="button" className="btn-secondary" onClick={exportProperties} disabled={!filteredProperties.length}>
+          Export CSV
         </button>
       </div>
       {ownerAssignmentMessage && <div className={ownerAssignmentFailed ? 'login-error' : 'settings-feedback-success'} role={ownerAssignmentFailed ? 'alert' : 'status'}>{ownerAssignmentMessage}</div>}

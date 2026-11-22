@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { FiPlus } from 'react-icons/fi'
 import axios from 'axios'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 import '../../styles/shifts.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -24,8 +25,16 @@ export default function Shifts() {
     const fetchShifts = async () => {
       try {
         setLoading(true)
-        const response = await axios.get(`${API_URL}/shifts?limit=100`, authConfig())
-        const result = response.data?.data?.data || response.data?.data || []
+        const result = []
+        let page = 1
+        let totalPages = 1
+        do {
+          const response = await axios.get(`${API_URL}/shifts`, { ...authConfig(), params: { page, limit: 100 } })
+          const payload = response.data?.data
+          result.push(...(Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []))
+          totalPages = Math.max(1, Number(payload?.pagination?.pages) || 1)
+          page += 1
+        } while (page <= totalPages)
         setShifts(result)
         setCurrentShift(result.find((s) => s.status === 'open') || null)
         setLoading(false)
@@ -75,6 +84,16 @@ export default function Shifts() {
     }
   }
 
+  const exportShifts = () => downloadCsv(`RMS_Shifts_${dateStamp()}.csv`, [
+    'Shift ID', 'Cashier', 'Opened', 'Closed', 'Opening balance (KES)', 'Expected closing (KES)', 'Actual closing (KES)', 'Variance (KES)', 'Transactions', 'Collected (KES)', 'Status',
+  ], shifts.map((shift) => [
+    shift.id, shift.cashierName || shift.cashier_name, shift.openTime || shift.startTime || shift.open_time,
+    shift.closeTime || shift.endTime || shift.close_time, shift.openingBalance ?? shift.opening_balance,
+    shift.expectedClosingBalance ?? shift.expected_closing_balance, shift.actualClosingBalance ?? shift.closingBalance ?? shift.actual_closing_balance,
+    shift.discrepancy ?? shift.variance, shift.transactionCount ?? shift.transaction_count,
+    shift.amountCollected ?? shift.amount_collected, shift.status,
+  ]))
+
   if (loading) {
     return <div className="loading-spinner">Loading shifts...</div>
   }
@@ -121,7 +140,7 @@ export default function Shifts() {
 
       {/* Shift History */}
       <div className="shift-history">
-        <h2>Shift History</h2>
+        <div className="flex justify-between items-center gap-3 mb-4"><h2>Shift History</h2><button type="button" className="btn-secondary" onClick={exportShifts} disabled={!shifts.length}>Export CSV</button></div>
         {shifts.length === 0 ? (
           <div className="empty-state">
             <p>No shifts recorded</p>

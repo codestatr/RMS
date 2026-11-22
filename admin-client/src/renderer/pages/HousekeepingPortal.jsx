@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import axios from 'axios'
 import { FaBroom, FaCheck, FaExclamationTriangle, FaPlus, FaSyncAlt, FaTools } from 'react-icons/fa'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 import '../../styles/housekeeping-portal.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -99,10 +100,27 @@ export default function HousekeepingPortal({ user, view = 'overview' }) {
     history: ['COMPLETED WORK', 'Review work completed by the housekeeping team recently.'],
   }[view] || ['PROPERTY CARE OVERVIEW', 'Rooms, tasks, and guest requests at a glance.']
 
+  const exportHousekeepingReport = () => {
+    let headers
+    let rows
+    if (view === 'rooms') {
+      headers = ['Property ID', 'Property', 'Type', 'Address', 'City', 'Readiness', 'Listing status', 'Occupied until']
+      rows = board.units.map((unit) => [unit.id, unit.name, unit.type, unit.address, unit.city, unit.housekeeping_status, unit.listing_status, unit.occupied_until])
+    } else if (view === 'guest_requests') {
+      headers = ['Request ID', 'Service', 'Guest', 'Property', 'Status', 'Payment status', 'Quoted amount (KES)', 'Created']
+      rows = board.guestRequests.map((request) => [request.id, request.service_type, `${request.first_name || ''} ${request.last_name || ''}`.trim(), request.property_name, request.status, request.payment_status, request.quoted_amount, request.created_at])
+    } else {
+      const tasks = view === 'history' ? board.history : filteredTasks
+      headers = ['Task ID', 'Title', 'Type', 'Priority', 'Status', 'Property', 'Assigned to', 'Created', 'Completed']
+      rows = tasks.map((task) => [task.id, task.title, task.task_type, task.priority, task.status, task.property_name, `${task.assigned_first_name || ''} ${task.assigned_last_name || ''}`.trim(), task.created_at, task.completed_at])
+    }
+    downloadCsv(`RMS_Housekeeping_${view}_${dateStamp()}.csv`, headers, rows)
+  }
+
   return <main className="housekeeping-portal">
     <header className="housekeeping-hero">
       <div><span className="housekeeping-eyebrow">{viewCopy[0]}</span><h2>{view === 'overview' ? `Good work, ${user?.firstName || 'team'}.` : viewCopy[0].replaceAll('&', 'and')}</h2><p>{viewCopy[1]}</p></div>
-      <div className="housekeeping-hero-actions"><button type="button" onClick={() => setShowReport((value) => !value)} className="btn-primary"><FaPlus /> Report a task</button><button type="button" onClick={() => { setLoading(true); loadBoard() }} className="housekeeping-refresh"><FaSyncAlt /> Refresh</button></div>
+      <div className="housekeeping-hero-actions"><button type="button" className="btn-secondary" onClick={exportHousekeepingReport} disabled={loading}>Export CSV</button><button type="button" onClick={() => setShowReport((value) => !value)} className="btn-primary"><FaPlus /> Report a task</button><button type="button" onClick={() => { setLoading(true); loadBoard() }} className="housekeeping-refresh"><FaSyncAlt /> Refresh</button></div>
     </header>
 
     {error && <p className="housekeeping-alert error" role="alert">{error}</p>}

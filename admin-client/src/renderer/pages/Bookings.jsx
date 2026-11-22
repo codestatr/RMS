@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 import { FiPlus, FiEdit2, FiTrash2, FiSearch, FiCheck, FiX } from 'react-icons/fi'
+import { downloadCsv, dateStamp } from '../utils/csvExport'
 import '../../styles/bookings.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
@@ -129,6 +130,13 @@ export default function Bookings({ onNewBooking, showNewBooking = true }) {
     }
   }
 
+  const exportBookings = () => downloadCsv(`RMS_Bookings_${dateStamp()}.csv`, [
+    'Booking ID', 'Guest', 'Property', 'Check-in', 'Check-out', 'Guests', 'Total (KES)', 'Status', 'Arrival window', 'Pickup location',
+  ], filteredBookings.map((booking) => [
+    booking.id, booking.customerName, booking.propertyName, booking.checkInDate, booking.checkOutDate,
+    booking.numberOfGuests, booking.totalAmount, booking.status, booking.arrivalWindow, booking.pickupLocation,
+  ]))
+
   if (loading) {
     return <div className="loading-spinner">Loading bookings...</div>
   }
@@ -167,6 +175,9 @@ export default function Bookings({ onNewBooking, showNewBooking = true }) {
           <FiPlus size={20} />
           New Booking
         </button>}
+        <button type="button" className="btn-secondary" onClick={exportBookings} disabled={!filteredBookings.length}>
+          Export CSV
+        </button>
       </div>
 
       {/* Bookings List */}

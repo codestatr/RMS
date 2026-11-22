@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { FaSun, FaMoneyBillWave, FaReceipt } from 'react-icons/fa';
+import { downloadCsv } from '../utils/csvExport';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -21,6 +22,22 @@ export default function EndOfDay() {
     }).finally(() => setLoading(false));
   }, [date]);
 
+  const exportDailyReport = () => {
+    if (!summary) return;
+    const rows = [
+      ['Summary', date, 'Total collected', summary.totalRevenue || 0, '', '', '', ''],
+      ['Summary', date, 'Transactions', summary.transactionCount || 0, '', '', '', ''],
+      ['Summary', date, 'Cashier shifts', summary.shifts?.length || 0, '', '', '', ''],
+      ...Object.entries(summary.byMethod || {}).map(([method, amount]) => ['Collection by method', date, method, amount, '', '', '', '']),
+      ...(summary.shifts || []).map((shift) => [
+        'Cashier shift', date, shift.cashierName, '', shift.status,
+        shift.open_time ? new Date(shift.open_time).toLocaleString() : '',
+        shift.close_time ? new Date(shift.close_time).toLocaleString() : '', shift.opening_balance || 0,
+      ]),
+    ];
+    downloadCsv(`RMS_End_of_Day_${date}.csv`, ['Section', 'Report date', 'Cashier or method', 'Amount / count', 'Status', 'Opened', 'Closed', 'Opening float (KES)'], rows);
+  };
+
   return (
     <div className="end-of-day-page">
       <div className="admin-card end-of-day-header">
@@ -28,7 +45,7 @@ export default function EndOfDay() {
           <h2><FaSun /> End-of-Day Summary</h2>
           <p>Review daily collections, payment channels, transactions, and cashier shifts.</p>
         </div>
-        <input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <div className="flex flex-wrap items-center gap-2"><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /><button type="button" className="btn-secondary" onClick={exportDailyReport} disabled={!summary || loading}>Export CSV</button></div>
       </div>
 
       {loading ? <div className="admin-card end-of-day-message">Loading daily summary...</div> : summary ? (

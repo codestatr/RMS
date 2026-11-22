@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FaUserPlus, FaUsers, FaUserCheck, FaKey } from 'react-icons/fa';
 import PasswordInput from '../components/PasswordInput';
 import axios from 'axios';
+import { downloadCsv, dateStamp } from '../utils/csvExport';
 
 export default function Staff() {
   const [staffList, setStaffList] = useState([]);
@@ -105,6 +106,10 @@ export default function Staff() {
     }
   };
 
+  const exportStaff = () => downloadCsv(`RMS_Staff_Directory_${dateStamp()}.csv`, [
+    'Staff ID', 'First name', 'Last name', 'Email', 'Phone', 'Role', 'Status',
+  ], staffList.map((member) => [member.id, member.firstName, member.lastName, member.email, member.phone, member.role, member.status]));
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center pb-4 border-b border-neutral-200">
@@ -113,18 +118,21 @@ export default function Staff() {
           <p className="text-xs text-neutral-500">Manage administrator, front desk, owner, housekeeping, and catering accounts.</p>
         </div>
 
-        <button
-          type="button"
-          disabled={isCreatingStaff}
-          onClick={() => {
-            resetStaffForm();
-            setCreateStaffError('');
-            setIsModalOpen(true);
-          }}
-          className="btn-amber flex items-center gap-2 text-xs"
-        >
-          <FaUserPlus /> Add New Staff Member
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-secondary" onClick={exportStaff} disabled={!staffList.length}>Export CSV</button>
+          <button
+            type="button"
+            disabled={isCreatingStaff}
+            onClick={() => {
+              resetStaffForm();
+              setCreateStaffError('');
+              setIsModalOpen(true);
+            }}
+            className="btn-amber flex items-center gap-2 text-xs"
+          >
+            <FaUserPlus /> Add New Staff Member
+          </button>
+        </div>
       </div>
 
       <div className="admin-card">
